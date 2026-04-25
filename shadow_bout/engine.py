@@ -180,6 +180,20 @@ def reset_round_state(game_state: GameState) -> GameState:
     )
 
 
+def set_battle_cards_as_played(
+    game_state: GameState, player_card: Card, npc_card: Card
+) -> GameState:
+    new_player = replace(
+        game_state.player,
+        hand=[card for card in game_state.player.hand if card.id != player_card.id],
+    )
+    new_npc = replace(
+        game_state.npc,
+        hand=[card for card in game_state.npc.hand if card.id != npc_card.id],
+    )
+    return replace(game_state, player=new_player, npc=new_npc)
+
+
 def init_game(deck: list[Card]) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。"""
     p_deck = list(deck)
@@ -214,6 +228,7 @@ def select_card(
 def resolve_round(
     game_state: GameState, player_card: Card, npc_card: Card
 ) -> GameState:
+    game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
     j_res = judge_janken(player_card, npc_card)
 
     player_point = None

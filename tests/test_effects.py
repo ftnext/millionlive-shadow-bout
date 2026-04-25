@@ -76,6 +76,54 @@ def test_ami_restart():
     assert other in state.npc.hand
 
 
+def test_mizuki_buff_dynamic_counts_remaining_hand_only():
+    mizuki = Card(
+        "c44",
+        "瑞希",
+        "みずき",
+        Janken.PAPER,
+        17,
+        Effect(EffectType.BUFF_DYNAMIC, "hand count", 1),
+    )
+    extra_1 = Card("e1", "extra1", "え1", Janken.ROCK, 1)
+    extra_2 = Card("e2", "extra2", "え2", Janken.SCISSORS, 1)
+    other = Card("cx", "other", "おざー", Janken.PAPER, 18, None)
+    state = GameState(
+        player=PlayerState(hand=[mizuki, extra_1, extra_2]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, mizuki, other)
+
+    assert state.current_battle.player_point == 19
+    assert state.current_battle.npc_point == 18
+    assert state.current_battle.outcome == RoundOutcome.WIN
+
+
+def test_ami_restart_does_not_duplicate_played_cards():
+    ami = Card(
+        "c11",
+        "亜美",
+        "あみ",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.RESTART, "restart", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 15, None)
+    p_extra = Card("p_extra", "p_extra", "ぴ", Janken.ROCK, 1)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[ami, p_extra]),
+        npc=PlayerState(hand=[other, n_extra]),
+    )
+
+    state = resolve_round(state, ami, other)
+
+    assert state.phase == Phase.SELECT
+    assert state.player.hand == [p_extra, ami]
+    assert state.npc.hand == [n_extra, other]
+
+
 def test_ami_consecutive_restart():
     # 5. 亜美の連続使用不可
     ami = Card(
