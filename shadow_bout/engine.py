@@ -15,6 +15,13 @@ from shadow_bout.models import (
 )
 from shadow_bout.npc import NpcStrategy
 
+JANKEN_ICONS = {
+    Janken.ROCK: "✊",
+    Janken.SCISSORS: "✌️",
+    Janken.PAPER: "✋",
+    Janken.WILDCARD: "🃏",
+}
+
 
 def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
     """じゃんけんの三すくみ判定のみ。WIN / LOSE / DRAW を返す。"""
@@ -211,9 +218,17 @@ def resolve_round(
         npc_point=npc_point,
     )
 
+    prefix = f"R{game_state.round_number}:"
+
     # あいこの場合は効果解決へ、勝負がついた場合は即座に結果反映へ
     if j_res == JankenResult.DRAW:
-        log_msg = f"R{game_state.round_number}: あなた({player_card.name}) vs NPC({npc_card.name}) -> じゃんけんあいこ！効果解決へ..."
+        p_score = calculate_final_score(game_state.player)
+        n_score = calculate_final_score(game_state.npc)
+        score_str = f"R{game_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
+
+        p_icon = JANKEN_ICONS.get(player_card.janken, "")
+        n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+        log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> じゃんけんあいこ！効果解決へ... {score_str}"
         new_state = replace(
             game_state,
             current_battle=result,
@@ -228,15 +243,21 @@ def resolve_round(
         return finalize_round_if_ready(new_state)
 
     else:
-        log_msg = f"R{game_state.round_number}: あなた({player_card.name}) vs NPC({npc_card.name}) -> "
-        if outcome == RoundOutcome.WIN:
-            log_msg += "あなたの勝ち！"
-        elif outcome == RoundOutcome.LOSE:
-            log_msg += "NPCの勝ち！"
-
         new_state = apply_battle_result(game_state, result)
+        p_score = calculate_final_score(new_state.player)
+        n_score = calculate_final_score(new_state.npc)
+        score_str = f"R{new_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
+
+        p_icon = JANKEN_ICONS.get(player_card.janken, "")
+        n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+        log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> "
+        if outcome == RoundOutcome.WIN:
+            log_msg += f"あなたの勝ち！ {score_str}"
+        elif outcome == RoundOutcome.LOSE:
+            log_msg += f"NPCの勝ち！ {score_str}"
+
         return replace(
-            new_state, phase=Phase.REVEAL, battle_log=new_state.battle_log + [log_msg]
+            new_state, phase=Phase.REVEAL, battle_log=game_state.battle_log + [log_msg]
         )
 
 
@@ -254,7 +275,16 @@ def finalize_round_if_ready(state: GameState) -> GameState:
         return replace(state, phase=Phase.REVEAL)
 
     final_state = apply_battle_result(state, res)
-    return replace(final_state, phase=Phase.REVEAL)
+
+    p_score = calculate_final_score(final_state.player)
+    n_score = calculate_final_score(final_state.npc)
+    score_str = f"R{final_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
+
+    new_log = list(final_state.battle_log)
+    if new_log:
+        new_log[-1] = f"{new_log[-1]} {score_str}"
+
+    return replace(final_state, phase=Phase.REVEAL, battle_log=new_log)
 
 
 def proceed_to_next(game_state: GameState) -> GameState:

@@ -12,7 +12,7 @@ from shadow_bout import (
     select_card,
     start_game,
 )
-from shadow_bout.effects import resume_effect
+from shadow_bout.effects import calculate_effective_point, resume_effect
 
 # Constants
 CARD_IDS = [
@@ -91,7 +91,30 @@ def main():
                     st.info("[???] (セット済み)")
                 else:
                     res = game_state.current_battle
-                    st.success(render_card_info(res.npc_card))
+                    base_pt = res.npc_card.base_point
+                    final_pt = base_pt
+                    if res.janken_result == JankenResult.DRAW:
+                        if res.npc_point is not None:
+                            final_pt = res.npc_point
+                        else:
+                            final_pt = calculate_effective_point(
+                                res.npc_card, game_state.npc
+                            )
+
+                    pt_str = (
+                        f"{base_pt} ➔ {final_pt}"
+                        if final_pt != base_pt
+                        else f"{base_pt}"
+                    )
+
+                    with st.container(border=True):
+                        st.markdown(
+                            f"**{res.npc_card.name} {JANKEN_ICONS[res.npc_card.janken]}{pt_str}**"
+                        )
+                        if res.npc_card.effect:
+                            st.caption(res.npc_card.effect.description)
+                        else:
+                            st.caption("（効果なし）")
 
             with battle_cols[1]:
                 st.markdown("**あなた**")
@@ -99,7 +122,30 @@ def main():
                     st.warning("[未選択]")
                 else:
                     res = game_state.current_battle
-                    st.success(render_card_info(res.player_card))
+                    base_pt = res.player_card.base_point
+                    final_pt = base_pt
+                    if res.janken_result == JankenResult.DRAW:
+                        if res.player_point is not None:
+                            final_pt = res.player_point
+                        else:
+                            final_pt = calculate_effective_point(
+                                res.player_card, game_state.player
+                            )
+
+                    pt_str = (
+                        f"{base_pt} ➔ {final_pt}"
+                        if final_pt != base_pt
+                        else f"{base_pt}"
+                    )
+
+                    with st.container(border=True):
+                        st.markdown(
+                            f"**{res.player_card.name} {JANKEN_ICONS[res.player_card.janken]}{pt_str}**"
+                        )
+                        if res.player_card.effect:
+                            st.caption(res.player_card.effect.description)
+                        else:
+                            st.caption("（効果なし）")
 
             if game_state.phase == Phase.REVEAL:
                 res = game_state.current_battle
@@ -138,15 +184,22 @@ def main():
                 cols = st.columns(len(hand))
                 for i, card in enumerate(hand):
                     with cols[i]:
-                        if st.button(
-                            render_card_info(card),
-                            key=f"card_{i}",
-                            use_container_width=True,
-                        ):
-                            st.session_state.game_state = select_card(
-                                game_state, card, st.session_state.npc_strategy
-                            )
-                            st.rerun()
+                        with st.container(border=True):
+                            st.markdown(f"**{render_card_info(card)}**")
+                            if card.effect:
+                                st.caption(card.effect.description)
+                            else:
+                                st.caption("（効果なし）")
+
+                            if st.button(
+                                "選択",
+                                key=f"card_{i}",
+                                use_container_width=True,
+                            ):
+                                st.session_state.game_state = select_card(
+                                    game_state, card, st.session_state.npc_strategy
+                                )
+                                st.rerun()
 
             # Player Stats
             st.markdown("---")
