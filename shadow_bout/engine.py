@@ -196,6 +196,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         effect_queue=[],
         removal_activated=False,
         revealed_this_round=None,
+        revealed_this_round_side=None,
     )
 
 

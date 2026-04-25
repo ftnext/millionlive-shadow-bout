@@ -155,6 +155,7 @@ def test_proceed_to_next_resets_round_local_state(mock_cards):
         effect_queue=[(Side.PLAYER, p_card)],
         removal_activated=True,
         revealed_this_round=[revealed_card],
+        revealed_this_round_side=Side.PLAYER,
     )
 
     new_state = proceed_to_next(state)
@@ -168,6 +169,7 @@ def test_proceed_to_next_resets_round_local_state(mock_cards):
     assert new_state.effect_queue == []
     assert new_state.removal_activated is False
     assert new_state.revealed_this_round is None
+    assert new_state.revealed_this_round_side is None
     assert new_state.player.point_modifier == 0
     assert new_state.player.effect_negated is False
     assert new_state.player.revealed_card_ids == frozenset({revealed_card.id})

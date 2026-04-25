@@ -151,3 +151,4 @@ class GameState:
     effect_queue: list[tuple[Side, Card]] = field(default_factory=list)
     removal_activated: bool = False
     revealed_this_round: list[Card] | None = None
+    revealed_this_round_side: Side | None = None

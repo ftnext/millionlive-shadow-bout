@@ -267,11 +267,19 @@ def effect_reveal(state: GameState, side: Side, card: Card) -> GameState:
 def effect_reveal_all(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
     opp_state = get_player_state(state, opp_side)
+    new_revealed = opp_state.revealed_card_ids | {
+        hand_card.id for hand_card in opp_state.hand
+    }
+    state = update_player(state, opp_side, revealed_card_ids=new_revealed)
 
-    state = replace(state, revealed_this_round=list(opp_state.hand))
+    state = replace(
+        state,
+        revealed_this_round=list(opp_state.hand),
+        revealed_this_round_side=opp_side,
+    )
     return replace(
         state,
-        battle_log=state.battle_log + [f"{card.name}の効果発動: 相手の手札を一時確認"],
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 相手の手札を全て公開"],
     )
 
 

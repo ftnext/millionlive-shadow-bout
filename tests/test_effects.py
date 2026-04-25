@@ -1,5 +1,6 @@
 from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
+    proceed_to_next,
     resolve_npc_pending_effects,
     resolve_round,
     resume_round_effect,
@@ -282,3 +283,117 @@ def test_ami_consecutive_restart():
     # Ami = 12, Other = 15. Other wins. Player loses.
     assert state.phase == Phase.REVEAL
     assert state.current_battle.outcome == RoundOutcome.LOSE
+
+
+def test_reveal_marks_npc_hand_card_as_persistent_public():
+    roco = Card(
+        "c25",
+        "ロコ",
+        "ろこ",
+        Janken.ROCK,
+        15,
+        Effect(EffectType.REVEAL, "reveal", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 18, None)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[roco]),
+        npc=PlayerState(hand=[other, n_extra]),
+    )
+
+    state = resolve_round(state, roco, other)
+
+    assert state.phase == Phase.REVEAL
+    assert state.npc.revealed_card_ids == frozenset({n_extra.id})
+
+
+def test_reveal_all_marks_npc_hand_cards_as_persistent_public():
+    takane = Card(
+        "c08",
+        "貴音",
+        "たかね",
+        Janken.SCISSORS,
+        15,
+        Effect(EffectType.REVEAL_ALL, "reveal all", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 18, None)
+    p_extra = Card("p_extra", "p_extra", "ぴ", Janken.PAPER, 1)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[takane, p_extra]),
+        npc=PlayerState(hand=[other, n_extra]),
+    )
+
+    state = resolve_round(state, takane, other)
+
+    assert state.phase == Phase.REVEAL
+    assert state.revealed_this_round == [n_extra]
+    assert state.revealed_this_round_side == Side.NPC
+    assert state.npc.revealed_card_ids == frozenset({n_extra.id})
+
+    next_state = proceed_to_next(state)
+
+    assert next_state.phase == Phase.SELECT
+    assert next_state.revealed_this_round is None
+    assert next_state.revealed_this_round_side is None
+    assert next_state.npc.revealed_card_ids == frozenset({n_extra.id})
+
+
+def test_npc_reveal_all_marks_player_hand_cards_as_persistent_public():
+    takane = Card(
+        "c08",
+        "貴音",
+        "たかね",
+        Janken.SCISSORS,
+        15,
+        Effect(EffectType.REVEAL_ALL, "reveal all", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 18, None)
+    p_extra = Card("p_extra", "p_extra", "ぴ", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[other, p_extra]),
+        npc=PlayerState(hand=[takane]),
+    )
+
+    state = resolve_round(state, other, takane)
+
+    assert state.phase == Phase.REVEAL
+    assert state.revealed_this_round == [p_extra]
+    assert state.revealed_this_round_side == Side.PLAYER
+    assert state.player.revealed_card_ids == frozenset({p_extra.id})
+
+
+def test_takane_draw_reveals_both_remaining_hands_persistently():
+    player_takane = Card(
+        "p_c08",
+        "貴音",
+        "たかね",
+        Janken.SCISSORS,
+        15,
+        Effect(EffectType.REVEAL_ALL, "reveal all", None),
+    )
+    npc_takane = Card(
+        "n_c08",
+        "貴音",
+        "たかね",
+        Janken.SCISSORS,
+        15,
+        Effect(EffectType.REVEAL_ALL, "reveal all", None),
+    )
+    p_extra = Card("p_extra", "p_extra", "ぴ", Janken.PAPER, 1)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[player_takane, p_extra]),
+        npc=PlayerState(hand=[npc_takane, n_extra]),
+    )
+
+    state = resolve_round(state, player_takane, npc_takane)
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.revealed_card_ids == frozenset({p_extra.id})
+    assert state.npc.revealed_card_ids == frozenset({n_extra.id})
+
+    next_state = proceed_to_next(state)
+
+    assert next_state.player.revealed_card_ids == frozenset({p_extra.id})
+    assert next_state.npc.revealed_card_ids == frozenset({n_extra.id})

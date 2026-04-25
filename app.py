@@ -65,24 +65,18 @@ def submit_effect_choice(game_state, choice):
 
 
 def render_known_npc_hand(game_state):
-    known_cards = [
+    persistent_cards = [
         card
         for card in game_state.npc.hand
         if card.id in game_state.npc.revealed_card_ids
     ]
-    if known_cards:
-        st.caption("公開中のNPC手札")
-        cols = st.columns(len(known_cards))
-        for i, card in enumerate(known_cards):
-            with cols[i]:
-                st.info(render_card_info(card))
 
-    if game_state.revealed_this_round:
-        st.caption("この勝負で確認したカード")
-        cols = st.columns(len(game_state.revealed_this_round))
-        for i, card in enumerate(game_state.revealed_this_round):
+    if persistent_cards:
+        st.caption("公開中のNPC手札")
+        cols = st.columns(len(persistent_cards))
+        for i, card in enumerate(persistent_cards):
             with cols[i]:
-                st.info(render_card_info(card))
+                render_card_detail(card)
 
 
 def render_pending_effect_form(game_state):
