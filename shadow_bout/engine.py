@@ -71,21 +71,19 @@ def apply_battle_result(game_state: GameState, result: BattleResult) -> GameStat
         # プレイヤーの勝ち
         new_p_won.append(n_card)
         new_p_won.extend(new_n_stock)
+        new_p_discard.append(p_card)
+        new_p_discard.extend(new_p_stock)
+        new_p_stock = []
         new_n_stock = []
-
-        new_p_discard.append(p_card)  # 自分の出したカードは捨て札（勝ち札にならない）
-        # ※仕様再確認: 勝者: 相手の場のカード → 自分の勝ち札。自分の場のカード → 自分の捨て札？
-        # 勝ち札は「得点になるカード」なので、相手のカードを奪うイメージ
-        # 自分の出したカードは役目を終えて捨て札へ。
 
     elif result.outcome == RoundOutcome.LOSE:
         # NPCの勝ち
         new_n_won.append(p_card)
         new_n_won.extend(new_p_stock)
-        new_p_stock = []
-
         new_n_discard.append(n_card)
-        new_p_discard.append(p_card)  # 負けたカードも捨て札
+        new_n_discard.extend(new_n_stock)
+        new_p_stock = []
+        new_n_stock = []
 
     elif result.outcome == RoundOutcome.EVEN:
         # 完全引き分け
