@@ -21,10 +21,12 @@
 
 ## コマンド
 
+`ruff` は `uv tool install ruff` 済みのため、直接実行します。
+
 ```bash
 uv run pytest
-uv run ruff format
-uv run ruff check --fix --extend-select I
+ruff format
+ruff check --fix --extend-select I
 ```
 
 Streamlit アプリを起動する場合:
