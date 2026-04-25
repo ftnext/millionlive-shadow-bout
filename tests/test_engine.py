@@ -3,6 +3,7 @@ import pytest
 from shadow_bout.engine import (
     apply_battle_result,
     check_forfeit,
+    compare_points,
     init_game,
     judge_janken,
     proceed_to_next,
@@ -37,6 +38,14 @@ def test_judge_janken(mock_cards):
     assert judge_janken(p, r) == JankenResult.WIN
     assert judge_janken(r, p) == JankenResult.LOSE
     assert judge_janken(r, r) == JankenResult.DRAW
+
+
+def test_compare_points(mock_cards):
+    low, same, _, high = mock_cards
+
+    assert compare_points(high, low) == RoundOutcome.WIN
+    assert compare_points(low, high) == RoundOutcome.LOSE
+    assert compare_points(low, same) == RoundOutcome.EVEN
 
 
 def test_init_game(mock_cards):

@@ -48,7 +48,11 @@ def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
 
 
 def compare_points(card_a: Card, card_b: Card) -> RoundOutcome:
-    pass  # Replaced by calculate_effective_point in effects.py
+    if card_a.base_point > card_b.base_point:
+        return RoundOutcome.WIN
+    if card_a.base_point < card_b.base_point:
+        return RoundOutcome.LOSE
+    return RoundOutcome.EVEN
 
 
 def apply_battle_result(game_state: GameState, result: BattleResult) -> GameState:
