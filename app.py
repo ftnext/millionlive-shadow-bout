@@ -52,6 +52,22 @@ def render_card_detail(card):
             st.caption("（効果なし）")
 
 
+def render_selectable_card(card, *, is_selected, key):
+    description = card.effect.description if card.effect else "（効果なし）"
+    prefix = "選択中\n\n" if is_selected else ""
+    label = f"{prefix}{render_card_info(card)}\n\n{description}"
+    return st.button(
+        label,
+        key=key,
+        type="primary" if is_selected else "secondary",
+        use_container_width=True,
+    )
+
+
+def find_card_by_id(cards, card_id):
+    return next((card for card in cards if card.id == card_id), None)
+
+
 def card_id_options(cards):
     labels = {card.id: render_card_info(card) for card in cards}
     return list(labels), labels
@@ -269,6 +285,7 @@ def main():
                 "シャドウバウト・エンゲージ", type="primary", use_container_width=True
             ):
                 st.session_state.game_state = start_game(st.session_state.deck)
+                st.session_state.selected_card_id = None
                 st.rerun()
 
         elif game_state.phase in [Phase.SELECT, Phase.REVEAL, Phase.INTERACTIVE_EFFECT]:
@@ -322,7 +339,14 @@ def main():
             with battle_cols[1]:
                 st.markdown("**あなた**")
                 if game_state.phase == Phase.SELECT:
-                    st.warning("[未選択]")
+                    selected_card = find_card_by_id(
+                        game_state.player.hand,
+                        st.session_state.get("selected_card_id"),
+                    )
+                    if selected_card:
+                        render_card_detail(selected_card)
+                    else:
+                        st.warning("[未選択]")
                 else:
                     res = game_state.current_battle
                     base_pt = res.player_card.base_point
@@ -382,19 +406,46 @@ def main():
                 if not hand:
                     st.info("出せる手札がありません。")
                 else:
+                    selected_card_id = st.session_state.get("selected_card_id")
+                    selected_card = find_card_by_id(hand, selected_card_id)
+                    if selected_card_id and selected_card is None:
+                        st.session_state.selected_card_id = None
+                        selected_card_id = None
+
                     cols = st.columns(len(hand))
                     for i, card in enumerate(hand):
                         with cols[i]:
-                            render_card_detail(card)
-                            if st.button(
-                                "選択",
+                            is_selected = card.id == selected_card_id
+                            if render_selectable_card(
+                                card,
+                                is_selected=is_selected,
                                 key=f"card_{i}",
-                                use_container_width=True,
                             ):
-                                st.session_state.game_state = select_card(
-                                    game_state, card, st.session_state.npc_strategy
-                                )
+                                st.session_state.selected_card_id = card.id
                                 st.rerun()
+
+                    selected_card = find_card_by_id(
+                        hand, st.session_state.get("selected_card_id")
+                    )
+                    st.markdown("---")
+                    if selected_card:
+                        st.caption(f"選択中: {render_card_info(selected_card)}")
+                    else:
+                        st.caption("カードを1枚選んでください。")
+
+                    if st.button(
+                        "エンゲージ",
+                        type="primary",
+                        disabled=selected_card is None,
+                        use_container_width=True,
+                    ):
+                        st.session_state.game_state = select_card(
+                            game_state,
+                            selected_card,
+                            st.session_state.npc_strategy,
+                        )
+                        st.session_state.selected_card_id = None
+                        st.rerun()
 
             # Player Stats
             st.markdown("---")
@@ -424,6 +475,7 @@ def main():
 
             if st.button("もう一度遊ぶ", use_container_width=True):
                 st.session_state.game_state = start_game(st.session_state.deck)
+                st.session_state.selected_card_id = None
                 st.rerun()
 
     with col2:
