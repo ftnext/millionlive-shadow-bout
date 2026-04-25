@@ -5,6 +5,7 @@ from shadow_bout.engine import (
     check_forfeit,
     init_game,
     judge_janken,
+    proceed_to_next,
 )
 from shadow_bout.models import (
     BattleResult,
@@ -110,8 +111,6 @@ def test_apply_battle_result_npc_win_moves_cards_by_rule(mock_cards):
 
 
 def test_proceed_to_next_resets_round_local_state(mock_cards):
-    from shadow_bout.engine import proceed_to_next
-
     p_card, n_card, _, revealed_card = mock_cards
     battle = BattleResult(
         outcome=RoundOutcome.WIN,
@@ -160,3 +159,39 @@ def test_proceed_to_next_resets_round_local_state(mock_cards):
     assert new_state.npc.point_modifier == 0
     assert new_state.npc.effect_negated is False
     assert new_state.npc.revealed_card_ids == frozenset({p_card.id})
+
+
+def test_proceed_to_next_resolves_remaining_forfeit_rounds(mock_cards):
+    forfeited_1, npc_card, forfeited_2, forfeited_3 = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[], deck=[forfeited_1, forfeited_2, forfeited_3]),
+        npc=PlayerState(hand=[npc_card]),
+        round_number=1,
+        phase=Phase.REVEAL,
+    )
+
+    new_state = proceed_to_next(state)
+
+    assert new_state.round_number == 4
+    assert new_state.phase == Phase.RESULT
+    assert new_state.player.deck == []
+    assert new_state.npc.won_cards == [forfeited_1, forfeited_2, forfeited_3]
+    assert new_state.battle_log[-3:] == [
+        "R2: あなたは不戦敗。NPCが勝ち札を獲得。",
+        "R3: あなたは不戦敗。NPCが勝ち札を獲得。",
+        "R4: あなたは不戦敗。NPCが勝ち札を獲得。",
+    ]
+
+
+def test_proceed_to_next_ends_when_both_players_cannot_play(mock_cards):
+    state = GameState(
+        player=PlayerState(hand=[]),
+        npc=PlayerState(hand=[]),
+        round_number=1,
+        phase=Phase.REVEAL,
+    )
+
+    new_state = proceed_to_next(state)
+
+    assert new_state.phase == Phase.RESULT
+    assert new_state.round_number == 1

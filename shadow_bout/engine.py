@@ -129,29 +129,38 @@ def apply_forfeit(game_state: GameState, forfeiting_side: Side) -> GameState:
     npc = game_state.npc
 
     if forfeiting_side == Side.PLAYER:
-        # プレイヤー不戦敗: NPCが山札から1枚めくり、それがNPCの勝ち札になる
-        if npc.deck:
-            card = npc.deck[0]
-            new_n_deck = npc.deck[1:]
-            new_n_won = list(npc.won_cards) + [card]
-            new_npc = replace(npc, deck=new_n_deck, won_cards=new_n_won)
-        else:
-            new_npc = npc
-
-        # プレイヤーは手札がないので何もしない（本当は場に出そうとしたカードがあるはずだが不戦敗時はスキップされる想定）
-        return replace(game_state, npc=new_npc)
-
-    else:
-        # NPC不戦敗
+        # プレイヤー不戦敗: プレイヤーの山札上をNPCの勝ち札にする
         if player.deck:
             card = player.deck[0]
             new_p_deck = player.deck[1:]
-            new_p_won = list(player.won_cards) + [card]
-            new_player = replace(player, deck=new_p_deck, won_cards=new_p_won)
+            new_n_won = list(npc.won_cards) + [card]
+            new_player = replace(player, deck=new_p_deck)
+            new_npc = replace(npc, won_cards=new_n_won)
         else:
             new_player = player
+            new_npc = npc
 
-        return replace(game_state, player=new_player)
+        return replace(game_state, player=new_player, npc=new_npc)
+
+    else:
+        # NPC不戦敗: NPCの山札上をプレイヤーの勝ち札にする
+        if npc.deck:
+            card = npc.deck[0]
+            new_n_deck = npc.deck[1:]
+            new_p_won = list(player.won_cards) + [card]
+            new_player = replace(player, won_cards=new_p_won)
+            new_npc = replace(npc, deck=new_n_deck)
+        else:
+            new_player = player
+            new_npc = npc
+
+        return replace(game_state, player=new_player, npc=new_npc)
+
+
+def format_forfeit_log(round_number: int, forfeiting_side: Side) -> str:
+    if forfeiting_side == Side.PLAYER:
+        return f"R{round_number}: あなたは不戦敗。NPCが勝ち札を獲得。"
+    return f"R{round_number}: NPCは不戦敗。あなたが勝ち札を獲得。"
 
 
 def calculate_final_score(state: PlayerState) -> int:
@@ -334,22 +343,32 @@ def resume_round_effect(game_state: GameState, choice: str | None = None) -> Gam
 
 
 def proceed_to_next(game_state: GameState) -> GameState:
+    game_state = reset_round_state(game_state)
+
     if game_state.round_number >= 4:
-        return replace(reset_round_state(game_state), phase=Phase.RESULT)
+        return replace(game_state, phase=Phase.RESULT)
 
     next_round = game_state.round_number + 1
 
-    # 不戦敗チェック
-    forfeit_side = check_forfeit(game_state.player, game_state.npc)
-    if forfeit_side:
-        game_state = apply_forfeit(game_state, forfeit_side)
-        # 不戦敗が発生してもラウンドは進む？それとも即終了？
-        # 一般的なゲームなら即終了か、そのラウンドを落とす。
-        # ここでは不戦敗処理をしてからRESULTへ
-        return replace(reset_round_state(game_state), phase=Phase.RESULT)
+    while next_round <= 4:
+        if not game_state.player.hand and not game_state.npc.hand:
+            return replace(game_state, phase=Phase.RESULT)
 
-    return replace(
-        reset_round_state(game_state),
-        round_number=next_round,
-        phase=Phase.SELECT,
-    )
+        forfeit_side = check_forfeit(game_state.player, game_state.npc)
+        if forfeit_side is None:
+            return replace(
+                game_state,
+                round_number=next_round,
+                phase=Phase.SELECT,
+            )
+
+        game_state = apply_forfeit(game_state, forfeit_side)
+        game_state = replace(
+            game_state,
+            round_number=next_round,
+            battle_log=game_state.battle_log
+            + [format_forfeit_log(next_round, forfeit_side)],
+        )
+        next_round += 1
+
+    return replace(game_state, phase=Phase.RESULT)
