@@ -155,6 +155,31 @@ def calculate_final_score(state: PlayerState) -> int:
     return sum(card.base_point for card in state.won_cards)
 
 
+def reset_round_state(game_state: GameState) -> GameState:
+    """次の勝負へ持ち越さない一時状態を初期化する。"""
+    new_player = replace(
+        game_state.player,
+        point_modifier=0,
+        effect_negated=False,
+    )
+    new_npc = replace(
+        game_state.npc,
+        point_modifier=0,
+        effect_negated=False,
+    )
+    return replace(
+        game_state,
+        player=new_player,
+        npc=new_npc,
+        current_battle=None,
+        effect_step=0,
+        pending_effect_context=None,
+        effect_queue=[],
+        removal_activated=False,
+        revealed_this_round=None,
+    )
+
+
 def init_game(deck: list[Card]) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。"""
     p_deck = list(deck)
@@ -287,7 +312,7 @@ def finalize_round_if_ready(state: GameState) -> GameState:
 
 def proceed_to_next(game_state: GameState) -> GameState:
     if game_state.round_number >= 4:
-        return replace(game_state, phase=Phase.RESULT)
+        return replace(reset_round_state(game_state), phase=Phase.RESULT)
 
     next_round = game_state.round_number + 1
 
@@ -298,8 +323,10 @@ def proceed_to_next(game_state: GameState) -> GameState:
         # 不戦敗が発生してもラウンドは進む？それとも即終了？
         # 一般的なゲームなら即終了か、そのラウンドを落とす。
         # ここでは不戦敗処理をしてからRESULTへ
-        return replace(game_state, phase=Phase.RESULT)
+        return replace(reset_round_state(game_state), phase=Phase.RESULT)
 
     return replace(
-        game_state, round_number=next_round, phase=Phase.SELECT, current_battle=None
+        reset_round_state(game_state),
+        round_number=next_round,
+        phase=Phase.SELECT,
     )

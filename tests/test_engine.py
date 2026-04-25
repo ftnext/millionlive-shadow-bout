@@ -12,6 +12,7 @@ from shadow_bout.models import (
     GameState,
     Janken,
     JankenResult,
+    Phase,
     PlayerState,
     RoundOutcome,
     Side,
@@ -106,3 +107,56 @@ def test_apply_battle_result_npc_win_moves_cards_by_rule(mock_cards):
     assert new_state.npc.won_cards == [p_card, p_stock]
     assert new_state.npc.discard == [n_card, n_stock]
     assert new_state.npc.draw_stock == []
+
+
+def test_proceed_to_next_resets_round_local_state(mock_cards):
+    from shadow_bout.engine import proceed_to_next
+
+    p_card, n_card, _, revealed_card = mock_cards
+    battle = BattleResult(
+        outcome=RoundOutcome.WIN,
+        winning_side=Side.PLAYER,
+        player_card=p_card,
+        npc_card=n_card,
+        janken_result=JankenResult.WIN,
+    )
+    state = GameState(
+        player=PlayerState(
+            hand=[p_card],
+            revealed_card_ids=frozenset({revealed_card.id}),
+            point_modifier=5,
+            effect_negated=True,
+        ),
+        npc=PlayerState(
+            hand=[n_card],
+            revealed_card_ids=frozenset({p_card.id}),
+            point_modifier=3,
+            effect_negated=True,
+        ),
+        phase=Phase.REVEAL,
+        current_battle=battle,
+        last_restart_round=1,
+        effect_step=2,
+        pending_effect_context={"effect": "choose"},
+        effect_queue=[(Side.PLAYER, p_card)],
+        removal_activated=True,
+        revealed_this_round=[revealed_card],
+    )
+
+    new_state = proceed_to_next(state)
+
+    assert new_state.round_number == 2
+    assert new_state.phase == Phase.SELECT
+    assert new_state.current_battle is None
+    assert new_state.last_restart_round == 1
+    assert new_state.effect_step == 0
+    assert new_state.pending_effect_context is None
+    assert new_state.effect_queue == []
+    assert new_state.removal_activated is False
+    assert new_state.revealed_this_round is None
+    assert new_state.player.point_modifier == 0
+    assert new_state.player.effect_negated is False
+    assert new_state.player.revealed_card_ids == frozenset({revealed_card.id})
+    assert new_state.npc.point_modifier == 0
+    assert new_state.npc.effect_negated is False
+    assert new_state.npc.revealed_card_ids == frozenset({p_card.id})
