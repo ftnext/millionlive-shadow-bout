@@ -129,6 +129,15 @@ class BattleResult:
 
 
 @dataclass(frozen=True)
+class PendingEffectContext:
+    side: Side
+    card_id: str
+    effect: str
+    step: int = 0
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class GameState:
     player: PlayerState
     npc: PlayerState
@@ -138,7 +147,7 @@ class GameState:
     current_battle: BattleResult | None = None
     last_restart_round: int | None = None
     effect_step: int = 0
-    pending_effect_context: dict[str, Any] | None = None
+    pending_effect_context: PendingEffectContext | None = None
     effect_queue: list[tuple[Side, Card]] = field(default_factory=list)
     removal_activated: bool = False
     revealed_this_round: list[Card] | None = None
