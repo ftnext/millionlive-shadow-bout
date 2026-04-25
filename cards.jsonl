@@ -1,0 +1,52 @@
+{"id": "card_01", "name": "春香", "kana": "はるか", "janken": null, "basePoint": 9, "effect": {"description": "お互いに手札を全て山札に加えた後、山札を切る。その後、山札から5枚引く。", "type": "draw", "value": 5}}
+{"id": "card_02", "name": "千早", "kana": "ちはや", "janken": null, "basePoint": 13, "effect": {"description": "相手の戦具の効果を無効化する。", "type": "negate", "value": null}}
+{"id": "card_03", "name": "美希", "kana": "みき", "janken": null, "basePoint": 16, "effect": {"description": "「グー」 「チョキ」「バー」のいずれかを宣言する。 相手の手札をランダムに1枚選んで確認し、宣言と同じマークだった場合、相手の勝ち札から1枚選んで自分の山札の一番下に置く。", "type": "special", "value": null}}
+{"id": "card_04", "name": "雪歩", "kana": "ゆきほ", "janken": null, "basePoint": 11, "effect": {"description": "相手の場のカードのポイントを半分にする。(小数点以下切捨て)", "type": "debuff", "value": 0.5}}
+{"id": "card_05", "name": "やよい", "kana": "やよい", "janken": null, "basePoint": 15, "effect": {"description": "自分のポイント+5する。", "type": "buff", "value": 5}}
+{"id": "card_06", "name": "真", "kana": "まこと", "janken": null, "basePoint": 18, "effect": {"description": "自分の手札のカードと場に出したこのカードを入れ替えることができる。この時に場に出たカードの戦具の効果は発動しない。", "type": "swap", "value": null}}
+{"id": "card_07", "name": "伊織", "kana": "いおり", "janken": null, "basePoint": 10, "effect": {"description": "次の勝負では、自分の場のカードのポイント+3する。", "type": "buff_next", "value": 3}}
+{"id": "card_08", "name": "貴音", "kana": "たかね", "janken": null, "basePoint": 15, "effect": {"description": "相手の手札を全て確認する。", "type": "reveal", "value": null}}
+{"id": "card_09", "name": "律子", "kana": "りつこ", "janken": null, "basePoint": 16, "effect": {"description": "次の勝負では、相手の場と手札の全てのカードのマークを「グー」として扱う。", "type": "change_janken", "value": "rock"}}
+{"id": "card_10", "name": "あずさ", "kana": "あずさ", "janken": null, "basePoint": 10, "effect": {"description": "相手の場のカードのポイントは0になる。", "type": "set_point", "value": 0}}
+{"id": "card_11", "name": "亜美", "kana": "あみ", "janken": null, "basePoint": 12, "effect": {"description": "お互いの場のカードを手札に戻し、この勝負をやり直す。この効果は連続で使用することはできない。", "type": "restart", "value": null}}
+{"id": "card_12", "name": "真美", "kana": "まみ", "janken": null, "basePoint": 12, "effect": {"description": "相手の手札からランダムに1枚選んで確認する。相手は次の勝負でそのカードを場に出さなければならない。", "type": "force_play", "value": null}}
+{"id": "card_13", "name": "響", "kana": "ひびき", "janken": null, "basePoint": 14, "effect": {"description": "自分のポイント+4する。", "type": "buff", "value": 4}}
+{"id": "card_14", "name": "未来", "kana": "みらい", "janken": null, "basePoint": 12, "effect": {"description": "山札の一番上のカードをめくり、そのカードの戦具の効果を発動する。 めくったカードは山札の一番下に置く。", "type": "copy_effect", "value": null}}
+{"id": "card_15", "name": "静香", "kana": "しずか", "janken": null, "basePoint": 20, "effect": null}
+{"id": "card_16", "name": "翼", "kana": "つばさ", "janken": null, "basePoint": 12, "effect": {"description": "自分のポイント+2する。この勝負では、カードが場から離れる効果を使用できない。", "type": "buff", "value": 2}}
+{"id": "card_17", "name": "琴葉", "kana": "ことは", "janken": null, "basePoint": 14, "effect": {"description": "相手の手札の枚数だけ相手の場のカードのポイント-1する。", "type": "debuff", "value": -1}}
+{"id": "card_18", "name": "エレナ", "kana": "えれな", "janken": null, "basePoint": 12, "effect": {"description": "この勝負に負けた場合、次の勝負で相手の場のカードのポイント-3する。", "type": "debuff_conditional", "value": -3}}
+{"id": "card_19", "name": "美奈子", "kana": "みなこ", "janken": null, "basePoint": 11, "effect": {"description": "自分の捨札を全て山札に加えた後、山札を切る。加えた枚数分、山札からカードを引く。", "type": "draw_dynamic", "value": null}}
+{"id": "card_20", "name": "恵美", "kana": "めぐみ", "janken": null, "basePoint": 11, "effect": {"description": "お互いに山札から2枚引く。", "type": "draw", "value": 2}}
+{"id": "card_21", "name": "まつり", "kana": "まつり", "janken": "rock", "basePoint": 19, "effect": {"description": "自分のポイント+1する。", "type": "buff", "value": 1}}
+{"id": "card_22", "name": "星梨花", "kana": "せりか", "janken": null, "basePoint": 13, "effect": {"description": "相手の山札の上から1枚めくり、そのカードを自分の手札に加える。", "type": "steal_draw", "value": 1}}
+{"id": "card_23", "name": "茜", "kana": "あかね", "janken": null, "basePoint": 13, "effect": {"description": "好きな順番で入れ替えることができる。", "type": "reorder", "value": null}}
+{"id": "card_24", "name": "杏奈", "kana": "あんな", "janken": null, "basePoint": 17, "effect": {"description": "自分の手札を1枚選び、相手に見せることで、そのカードの戦具の効果を発動する。見せたカードは手札に戻す。", "type": "copy_hand", "value": null}}
+{"id": "card_25", "name": "ロコ", "kana": "ろこ", "janken": null, "basePoint": 15, "effect": {"description": "相手の手札を1枚ランダムに選ぶ。そのカードは以降公開した状態で扱う。", "type": "reveal", "value": 1}}
+{"id": "card_26", "name": "百合子", "kana": "ゆりこ", "janken": null, "basePoint": 15, "effect": {"description": "どちらかの効果を選んで発動する。●自分のポイント+3する。●山札から2枚引く。その後、手札を2枚選び、山札の一番下に置く。", "type": "choose", "value": null}}
+{"id": "card_27", "name": "紗代子", "kana": "さよこ", "janken": null, "basePoint": 14, "effect": {"description": "この勝負が何戦目かによって以下のポイントをする。●1戦目:+2 2戦目:+4 ●3戦目:+6 4戦目:+8", "type": "buff_scaling", "value": null}}
+{"id": "card_28", "name": "亜利沙", "kana": "ありさ", "janken": "rock", "basePoint": 11, "effect": {"description": "相手の場のカードのマークを「チョキ」に変える。", "type": "change_janken", "value": "scissors"}}
+{"id": "card_29", "name": "海美", "kana": "うみ", "janken": "scissors", "basePoint": 14, "effect": {"description": "以下の効果を1つ、またはどちらも発動できる。●手札を1枚捨礼に置く。自分のポイント+5する。●山札から1枚引く。自分のポイント-2する。", "type": "choose_multiple", "value": null}}
+{"id": "card_30", "name": "育", "kana": "いく", "janken": null, "basePoint": 12, "effect": {"description": "この勝負が3戦目以降の場合、相手の場のカードのポイント-4する。", "type": "debuff_conditional", "value": -4}}
+{"id": "card_31", "name": "朋花", "kana": "ともか", "janken": null, "basePoint": 12, "effect": {"description": "お互い山札の上から1枚めくって公開する。その2枚のカードが「バー」と「チョキ」ならこの勝負に勝つ。めくったカードは山礼の一番下に置く。", "type": "win_condition", "value": null}}
+{"id": "card_32", "name": "エミリー", "kana": "えみりー", "janken": null, "basePoint": 13, "effect": {"description": "相手の戦具の効果を受けない。", "type": "immune", "value": null}}
+{"id": "card_33", "name": "志保", "kana": "しほ", "janken": null, "basePoint": 11, "effect": {"description": "相手の場のカードのポイント-5する。相手は手札を1枚捨札に置くことでこの効果を無効にすることができる。", "type": "debuff_counterable", "value": -5}}
+{"id": "card_34", "name": "歩", "kana": "あゆむ", "janken": null, "basePoint": 12, "effect": {"description": "この勝負中、相手の場のカードのポイントをこのカードのポイントと同じ数値にすることができる。", "type": "set_point_match", "value": null}}
+{"id": "card_35", "name": "ひなた", "kana": "ひなた", "janken": null, "basePoint": 10, "effect": {"description": "このターンと次のターン、相手の場のカードのポイント-2する。", "type": "debuff_persistent", "value": -2}}
+{"id": "card_36", "name": "可奈", "kana": "かな", "janken": null, "basePoint": 13, "effect": {"description": "相手の手札をランダムに1枚選んで確認する。そのカードと相手の場のカードを入れ替えてもよい。(新たに場に出たカードの戦具の効果は発動しない)", "type": "swap_opponent", "value": null}}
+{"id": "card_37", "name": "奈緒", "kana": "なお", "janken": "paper", "basePoint": 12, "effect": {"description": "相手の場のカードのポイントが奇数の場合に効果を使用できる。相手の場のカードの戦具の効果を無効化し、このカードのポイント+3する。", "type": "conditional_negate_buff", "value": 3}}
+{"id": "card_38", "name": "千鶴", "kana": "ちづる", "janken": null, "basePoint": 13, "effect": {"description": "自分の手札を1枚選び、山札から好きなカード1枚と交換することができる。交換したなら山札を切る。", "type": "search_and_swap", "value": null}}
+{"id": "card_39", "name": "このみ", "kana": "このみ", "janken": null, "basePoint": 14, "effect": {"description": "自分のポイント+3する。この勝負に勝った場合、次の勝負で自分の場のカードのポイント+3する。", "type": "buff_snowball", "value": 3}}
+{"id": "card_40", "name": "環", "kana": "たまき", "janken": null, "basePoint": 11, "effect": {"description": "自分のポイント+2する。自分の山札の一番上を確認する。", "type": "buff_and_peek", "value": 2}}
+{"id": "card_41", "name": "風花", "kana": "ふうか", "janken": null, "basePoint": 13, "effect": {"description": "自分の捨礼のカードの中から1枚選んで手札に加えることができる。手札に加えた場合、自分のポイント-3する。", "type": "salvage", "value": -3}}
+{"id": "card_42", "name": "美也", "kana": "みや", "janken": null, "basePoint": 12, "effect": {"description": "相手の場のカードのポイントが15以下の場合、相手の場のカードのポイント-5する。この勝負に勝った場合、山札から1枚引く。", "type": "conditional_debuff_draw", "value": -5}}
+{"id": "card_43", "name": "のり子", "kana": "のりこ", "janken": null, "basePoint": 14, "effect": {"description": "相手の勝ち札の合計ポイントが自分より高い場合、自分のポイント+7する。", "type": "conditional_buff", "value": 7}}
+{"id": "card_44", "name": "瑞希", "kana": "みずき", "janken": null, "basePoint": 17, "effect": {"description": "自分の手札の枚数だけポイント+1する。", "type": "buff_dynamic", "value": 1}}
+{"id": "card_45", "name": "可憐", "kana": "かれん", "janken": null, "basePoint": 11, "effect": {"description": "どちらかの効果を選んで発動する。●自分のポイント+2する。●このカードを山札に戻し、山札を切る。その後、山札の上から1枚めくってそのカードを場に出す。(新たに場に出たカードの戦具の効果は発動しない)", "type": "choose", "value": null}}
+{"id": "card_46", "name": "莉緒", "kana": "りお", "janken": null, "basePoint": 11, "effect": {"description": "相手の手札をランダムに1枚選んで自分の手札に加える。", "type": "steal_hand", "value": 1}}
+{"id": "card_47", "name": "昴", "kana": "すばる", "janken": null, "basePoint": 12, "effect": {"description": "次の勝負では、相手は「バー」以外のカードのポイント-3する。", "type": "conditional_debuff_next", "value": -3}}
+{"id": "card_48", "name": "麗花", "kana": "れいか", "janken": null, "basePoint": 13, "effect": {"description": "このカードを山札に戻すことができる。戻した場合、山札の中から好きなカードを1枚選んで場に出す。その後、山札を切る。(新たに場に出たカードの戦具の効果は発動しない)", "type": "tutor_play", "value": null}}
+{"id": "card_49", "name": "桃子", "kana": "ももこ", "janken": null, "basePoint": 6, "effect": {"description": "なし(このカードを表にするときに「グー」「チョキ」「バー」のいずれかを宣言し、このカードは宣言したマークとして扱う)", "type": "wildcard", "value": null}}
+{"id": "card_50", "name": "ジュリア", "kana": "じゅりあ", "janken": null, "basePoint": 13, "effect": {"description": "このカードを山札に戻すことができる。戻した場合、相手の場のカードを捨札に置き、次の勝負に進む。その後、山札を切る。", "type": "removal", "value": null}}
+{"id": "card_51", "name": "紬", "kana": "つむぎ", "janken": "paper", "basePoint": 10, "effect": {"description": "この勝負に勝った場合、このカードを相手の手札に加える。相手は手札にこのカードがある限り、場にカードをセットする際は表向きにセットしなければならない。", "type": "curse", "value": null}}
+{"id": "card_52", "name": "歌織", "kana": "かおり", "janken": null, "basePoint": 14, "effect": {"description": "カード名をひとつ宣言する。以降の勝負で相手は宣言したカードを場に出すことはできない。", "type": "ban", "value": null}}
