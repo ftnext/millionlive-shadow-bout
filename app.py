@@ -41,7 +41,7 @@ def render_card_info(card):
 
 
 def main():
-    st.title("🎴 シャドウバウト v0.1")
+    st.title("陰界戦戯（シャドウバウト）")
 
     # Initialize deck and NPC strategy
     if "deck" not in st.session_state:
@@ -64,8 +64,8 @@ def main():
 
     with col1:
         if game_state.phase == Phase.START:
-            st.write("NPCとのじゃんけんバトルを開始します！")
-            if st.button("ゲーム開始", type="primary", use_container_width=True):
+            st.write("NPCとの陰界戦戯を開始します！")
+            if st.button("シャドウバウト・エンゲージ", type="primary", use_container_width=True):
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.rerun()
 
