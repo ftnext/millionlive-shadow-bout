@@ -1,9 +1,12 @@
 from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
+    continue_round_effect_step,
     proceed_to_next,
     resolve_npc_pending_effects,
     resolve_round,
+    resolve_round_stepwise,
     resume_round_effect,
+    resume_round_effect_stepwise,
 )
 from shadow_bout.models import (
     Card,
@@ -73,6 +76,37 @@ def test_chihaya_vs_yayoi():
     assert state.current_battle.outcome == RoundOutcome.WIN
 
 
+def test_stepwise_effect_resolution_waits_between_weapon_effects():
+    yayoi = Card(
+        "c5", "やよい", "やよい", Janken.ROCK, 15, Effect(EffectType.BUFF, "+5", 5)
+    )
+    takane = Card(
+        "c8", "貴音", "たかね", Janken.ROCK, 14, Effect(EffectType.BUFF, "+1", 1)
+    )
+    state = GameState(
+        player=PlayerState(hand=[yayoi]),
+        npc=PlayerState(hand=[takane]),
+    )
+
+    state = resolve_round_stepwise(state, yayoi, takane)
+
+    assert state.phase == Phase.EFFECT_RESOLUTION
+    assert state.effect_queue == [(Side.NPC, takane), (Side.PLAYER, yayoi)]
+
+    state = continue_round_effect_step(state)
+
+    assert state.phase == Phase.EFFECT_RESOLUTION
+    assert state.effect_queue == [(Side.PLAYER, yayoi)]
+    assert state.npc.point_modifier == 1
+
+    state = continue_round_effect_step(state)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 20
+    assert state.current_battle.npc_point == 15
+    assert state.current_battle.outcome == RoundOutcome.WIN
+
+
 def test_resume_choose_effect_finalizes_round_with_buff():
     yuriko = Card(
         "c26",
@@ -99,6 +133,55 @@ def test_resume_choose_effect_finalizes_round_with_buff():
     assert state.current_battle.outcome == RoundOutcome.WIN
     assert state.player.won_cards == [other]
     assert state.player.discard == [yuriko]
+
+
+def test_stepwise_nested_copy_hand_choose_finalizes_points_after_last_choice():
+    mirai = Card(
+        "c14",
+        "未来",
+        "みらい",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.COPY_EFFECT, "copy deck", None),
+    )
+    yayoi = Card(
+        "c5", "やよい", "やよい", Janken.PAPER, 15, Effect(EffectType.BUFF, "+5", 5)
+    )
+    anna = Card(
+        "c24",
+        "杏奈",
+        "あんな",
+        Janken.ROCK,
+        17,
+        Effect(EffectType.COPY_HAND, "copy hand", None),
+    )
+    yuriko = Card(
+        "c26",
+        "百合子",
+        "ゆりこ",
+        Janken.PAPER,
+        15,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[anna, yuriko]),
+        npc=PlayerState(hand=[mirai], deck=[yayoi]),
+    )
+
+    state = resolve_round_stepwise(state, anna, mirai)
+    state = continue_round_effect_step(state)
+    state = continue_round_effect_step(state)
+    state = continue_round_effect_step(state)
+    state = resume_round_effect_stepwise(state, choice=yuriko.id)
+    state = continue_round_effect_step(state)
+    state = resume_round_effect_stepwise(state, choice="buff")
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 20
+    assert state.current_battle.npc_point == 17
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.player.won_cards == [mirai]
+    assert state.player.discard == [anna]
 
 
 def test_resume_choose_effect_draw_lets_player_select_returned_cards():
