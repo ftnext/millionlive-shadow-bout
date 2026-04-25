@@ -41,7 +41,7 @@ def get_opponent_side(side: Side) -> Side:
 
 
 def calculate_effective_point(card: Card, player_state: PlayerState) -> int:
-    return card.base_point + len(player_state.hand) + player_state.point_modifier
+    return card.base_point + player_state.point_modifier
 
 
 def init_effect_resolution(state: GameState, p_card: Card, n_card: Card) -> GameState:

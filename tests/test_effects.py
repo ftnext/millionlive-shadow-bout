@@ -16,7 +16,7 @@ def test_basic_point_calculation():
     # 1. 基本ポイント計算
     c = Card("c1", "test", "test", Janken.ROCK, 15)
     p = PlayerState(hand=[c, c, c])  # 3 cards
-    assert calculate_effective_point(c, p) == 15 + 3
+    assert calculate_effective_point(c, p) == 15
 
 
 def test_chihaya_vs_yayoi():
