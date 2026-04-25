@@ -9,10 +9,11 @@ from shadow_bout import (
     calculate_final_score,
     load_deck,
     proceed_to_next,
+    resume_round_effect,
     select_card,
     start_game,
 )
-from shadow_bout.effects import calculate_effective_point, resume_effect
+from shadow_bout.effects import calculate_effective_point
 
 # Constants
 CARD_IDS = [
@@ -65,7 +66,9 @@ def main():
     with col1:
         if game_state.phase == Phase.START:
             st.write("NPCとの陰界戦戯を開始します！")
-            if st.button("シャドウバウト・エンゲージ", type="primary", use_container_width=True):
+            if st.button(
+                "シャドウバウト・エンゲージ", type="primary", use_container_width=True
+            ):
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.rerun()
 
@@ -174,7 +177,7 @@ def main():
                     "戦具の効果による選択が発生しました。（※v0.2MVPでは自動処理されます）"
                 )
                 if st.button("選択して次へ", type="primary", use_container_width=True):
-                    st.session_state.game_state = resume_effect(game_state)
+                    st.session_state.game_state = resume_round_effect(game_state)
                     st.rerun()
 
             elif game_state.phase == Phase.SELECT:

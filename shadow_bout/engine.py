@@ -1,7 +1,11 @@
 import random
 from dataclasses import replace
 
-from shadow_bout.effects import init_effect_resolution, process_next_effect
+from shadow_bout.effects import (
+    init_effect_resolution,
+    process_next_effect,
+    resume_effect,
+)
 from shadow_bout.models import (
     BattleResult,
     Card,
@@ -323,6 +327,10 @@ def finalize_round_if_ready(state: GameState) -> GameState:
         new_log[-1] = f"{new_log[-1]} {score_str}"
 
     return replace(final_state, phase=Phase.REVEAL, battle_log=new_log)
+
+
+def resume_round_effect(game_state: GameState, choice: str | None = None) -> GameState:
+    return finalize_round_if_ready(resume_effect(game_state, choice))
 
 
 def proceed_to_next(game_state: GameState) -> GameState:

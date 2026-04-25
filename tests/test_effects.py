@@ -1,5 +1,5 @@
 from shadow_bout.effects import calculate_effective_point
-from shadow_bout.engine import resolve_round
+from shadow_bout.engine import resolve_round, resume_round_effect
 from shadow_bout.models import (
     Card,
     Effect,
@@ -51,6 +51,63 @@ def test_chihaya_vs_yayoi():
     # Yayoi points: 15 + 1 = 16 (negated, so +5 not applied)
     # 16 > 14, Yayoi wins.
     assert state.current_battle.outcome == RoundOutcome.WIN
+
+
+def test_resume_choose_effect_finalizes_round_with_buff():
+    yuriko = Card(
+        "c26",
+        "百合子",
+        "ゆりこ",
+        Janken.PAPER,
+        15,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 17, None)
+    state = GameState(
+        player=PlayerState(hand=[yuriko]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, yuriko, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="buff")
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 18
+    assert state.current_battle.npc_point == 17
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.player.won_cards == [other]
+    assert state.player.discard == [yuriko]
+
+
+def test_resume_removal_effect_skips_winner_and_moves_cards():
+    julia = Card(
+        "c50",
+        "ジュリア",
+        "じゅりあ",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.REMOVAL, "removal", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[julia]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, julia, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.phase == Phase.REVEAL
+    assert state.removal_activated is True
+    assert state.current_battle.outcome == RoundOutcome.EVEN
+    assert state.player.deck == [julia]
+    assert state.npc.discard == [other]
+    assert state.player.won_cards == []
+    assert state.npc.won_cards == []
 
 
 def test_ami_restart():
