@@ -30,16 +30,13 @@ def test_judge_janken(mock_cards):
 
 def test_compare_points(mock_cards):
     r10, _, _, r20 = mock_cards
-    # base_point + hand_size
-    # 10 + 4 vs 20 + 4 -> LOSE
-    assert compare_points(r10, 4, r20, 4) == RoundOutcome.LOSE
-    # 20 + 4 vs 10 + 4 -> WIN
-    assert compare_points(r20, 4, r10, 4) == RoundOutcome.WIN
-    # 10 + 5 vs 10 + 5 -> EVEN
-    assert compare_points(r10, 5, r10, 5) == RoundOutcome.EVEN
-    # 10 + 5 vs 12 + 3 -> EVEN (15 vs 15)
-    c12 = Card("cx", "x", Janken.ROCK, 12)
-    assert compare_points(r10, 5, c12, 3) == RoundOutcome.EVEN
+    # base_point only
+    # 10 vs 20 -> LOSE
+    assert compare_points(r10, r20) == RoundOutcome.LOSE
+    # 20 vs 10 -> WIN
+    assert compare_points(r20, r10) == RoundOutcome.WIN
+    # 10 vs 10 -> EVEN
+    assert compare_points(r10, r10) == RoundOutcome.EVEN
 
 
 def test_init_game(mock_cards):

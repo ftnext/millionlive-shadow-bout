@@ -35,12 +35,10 @@ def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
         return JankenResult.LOSE
 
 
-def compare_points(
-    card_a: Card, hand_size_a: int, card_b: Card, hand_size_b: int
-) -> RoundOutcome:
-    """あいこ時のポイント比較。base_point + hand_size（場に出した後の手札枚数）で比較"""
-    point_a = card_a.base_point + hand_size_a
-    point_b = card_b.base_point + hand_size_b
+def compare_points(card_a: Card, card_b: Card) -> RoundOutcome:
+    """あいこ時のポイント比較。base_point で比較"""
+    point_a = card_a.base_point
+    point_b = card_b.base_point
 
     if point_a > point_b:
         return RoundOutcome.WIN
@@ -205,13 +203,10 @@ def resolve_round(
         outcome = RoundOutcome.LOSE
     else:
         # あいこ
-        # 手札枚数は「場に出した後」の残り枚数
-        p_hand_size = len(game_state.player.hand) - 1
-        n_hand_size = len(game_state.npc.hand) - 1
-        player_point = player_card.base_point + p_hand_size
-        npc_point = npc_card.base_point + n_hand_size
+        player_point = player_card.base_point
+        npc_point = npc_card.base_point
 
-        outcome = compare_points(player_card, p_hand_size, npc_card, n_hand_size)
+        outcome = compare_points(player_card, npc_card)
 
     winning_side = None
     if outcome == RoundOutcome.WIN:
