@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class Janken(Enum):
@@ -13,7 +14,64 @@ class Phase(Enum):
     START = "start"
     SELECT = "select"
     REVEAL = "reveal"
+    EFFECT_RESOLUTION = "effect_resolution"
+    INTERACTIVE_EFFECT = "interactive_effect"
     RESULT = "result"
+
+
+class EffectType(Enum):
+    BUFF = "buff"
+    BUFF_DYNAMIC = "buff_dynamic"
+    NEGATE = "negate"
+    REVEAL = "reveal"
+    REVEAL_ALL = "reveal_all"
+    SWAP = "swap"
+    COPY_HAND = "copy_hand"
+    COPY_EFFECT = "copy_effect"
+    RESTART = "restart"
+    SEARCH_AND_SWAP = "search_and_swap"
+    REMOVAL = "removal"
+    CHOOSE = "choose"
+    NULL = "null"
+    # Other types for full deck compatibility
+    DRAW = "draw"
+    SPECIAL = "special"
+    DEBUFF = "debuff"
+    BUFF_NEXT = "buff_next"
+    CHANGE_JANKEN = "change_janken"
+    SET_POINT = "set_point"
+    FORCE_PLAY = "force_play"
+    DEBUFF_CONDITIONAL = "debuff_conditional"
+    DRAW_DYNAMIC = "draw_dynamic"
+    STEAL_DRAW = "steal_draw"
+    REORDER = "reorder"
+    BUFF_SCALING = "buff_scaling"
+    CHOOSE_MULTIPLE = "choose_multiple"
+    WIN_CONDITION = "win_condition"
+    IMMUNE = "immune"
+    DEBUFF_COUNTERABLE = "debuff_counterable"
+    SET_POINT_MATCH = "set_point_match"
+    DEBUFF_PERSISTENT = "debuff_persistent"
+    SWAP_OPPONENT = "swap_opponent"
+    CONDITIONAL_NEGATE_BUFF = "conditional_negate_buff"
+    BUFF_SNOWBALL = "buff_snowball"
+    BUFF_AND_PEEK = "buff_and_peek"
+    SALVAGE = "salvage"
+    CONDITIONAL_DEBUFF_DRAW = "conditional_debuff_draw"
+    CONDITIONAL_BUFF = "conditional_buff"
+    STEAL_HAND = "steal_hand"
+    CONDITIONAL_DEBUFF_NEXT = "conditional_debuff_next"
+    TUTOR_PLAY = "tutor_play"
+    WILDCARD = "wildcard"
+    CURSE = "curse"
+    BAN = "ban"
+
+
+@dataclass(frozen=True)
+class Effect:
+    type: EffectType
+    description: str
+    value: int | float | str | None = None
 
 
 class JankenResult(Enum):
@@ -41,8 +99,10 @@ class Side(Enum):
 class Card:
     id: str
     name: str
+    kana: str
     janken: Janken
     base_point: int
+    effect: Effect | None = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +112,9 @@ class PlayerState:
     discard: list[Card] = field(default_factory=list)
     won_cards: list[Card] = field(default_factory=list)
     draw_stock: list[Card] = field(default_factory=list)
+    revealed_card_ids: frozenset[str] = frozenset()
+    point_modifier: int = 0
+    effect_negated: bool = False
 
 
 @dataclass(frozen=True)
@@ -73,3 +136,9 @@ class GameState:
     phase: Phase = Phase.START
     battle_log: list[str] = field(default_factory=list)
     current_battle: BattleResult | None = None
+    last_restart_round: int | None = None
+    effect_step: int = 0
+    pending_effect_context: dict[str, Any] | None = None
+    effect_queue: list[tuple[Side, Card]] = field(default_factory=list)
+    removal_activated: bool = False
+    revealed_this_round: list[Card] | None = None

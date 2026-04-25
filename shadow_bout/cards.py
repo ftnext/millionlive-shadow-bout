@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from shadow_bout.models import Card, Janken
+from shadow_bout.models import Card, Effect, EffectType, Janken
 
 
 def load_deck(
@@ -14,12 +14,26 @@ def load_deck(
             if not line.strip():
                 continue
             data = json.loads(line)
+            effect_data = data.get("effect")
+            effect = None
+            if effect_data:
+                try:
+                    effect = Effect(
+                        type=EffectType(effect_data["type"]),
+                        description=effect_data["description"],
+                        value=effect_data.get("value"),
+                    )
+                except ValueError:
+                    pass
+
             all_cards.append(
                 Card(
                     id=data["id"],
                     name=data["name"],
+                    kana=data["kana"],
                     janken=Janken(data["janken"]),
                     base_point=data["basePoint"],
+                    effect=effect,
                 )
             )
 

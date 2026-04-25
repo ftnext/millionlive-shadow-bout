@@ -2,20 +2,19 @@ import pytest
 
 from shadow_bout.engine import (
     check_forfeit,
-    compare_points,
     init_game,
     judge_janken,
 )
-from shadow_bout.models import Card, Janken, JankenResult, RoundOutcome, Side
+from shadow_bout.models import Card, Janken, JankenResult, Side
 
 
 @pytest.fixture
 def mock_cards():
     return [
-        Card("c1", "R10", Janken.ROCK, 10),
-        Card("c2", "S10", Janken.SCISSORS, 10),
-        Card("c3", "P10", Janken.PAPER, 10),
-        Card("c4", "R20", Janken.ROCK, 20),
+        Card("c1", "R10", "kana", Janken.ROCK, 10),
+        Card("c2", "S10", "kana", Janken.SCISSORS, 10),
+        Card("c3", "P10", "kana", Janken.PAPER, 10),
+        Card("c4", "R20", "kana", Janken.ROCK, 20),
     ]
 
 
@@ -26,17 +25,6 @@ def test_judge_janken(mock_cards):
     assert judge_janken(p, r) == JankenResult.WIN
     assert judge_janken(r, p) == JankenResult.LOSE
     assert judge_janken(r, r) == JankenResult.DRAW
-
-
-def test_compare_points(mock_cards):
-    r10, _, _, r20 = mock_cards
-    # base_point only
-    # 10 vs 20 -> LOSE
-    assert compare_points(r10, r20) == RoundOutcome.LOSE
-    # 20 vs 10 -> WIN
-    assert compare_points(r20, r10) == RoundOutcome.WIN
-    # 10 vs 10 -> EVEN
-    assert compare_points(r10, r10) == RoundOutcome.EVEN
 
 
 def test_init_game(mock_cards):

@@ -1,6 +1,7 @@
 import random
 from dataclasses import replace
 
+from shadow_bout.effects import init_effect_resolution, process_next_effect
 from shadow_bout.models import (
     BattleResult,
     Card,
@@ -36,16 +37,7 @@ def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
 
 
 def compare_points(card_a: Card, card_b: Card) -> RoundOutcome:
-    """あいこ時のポイント比較。base_point で比較"""
-    point_a = card_a.base_point
-    point_b = card_b.base_point
-
-    if point_a > point_b:
-        return RoundOutcome.WIN
-    elif point_a < point_b:
-        return RoundOutcome.LOSE
-    else:
-        return RoundOutcome.EVEN
+    pass  # Replaced by calculate_effective_point in effects.py
 
 
 def apply_battle_result(game_state: GameState, result: BattleResult) -> GameState:
@@ -196,23 +188,18 @@ def resolve_round(
 
     player_point = None
     npc_point = None
+    outcome = None
+    winning_side = None
 
     if j_res == JankenResult.WIN:
         outcome = RoundOutcome.WIN
+        winning_side = Side.PLAYER
     elif j_res == JankenResult.LOSE:
         outcome = RoundOutcome.LOSE
-    else:
-        # あいこ
-        player_point = player_card.base_point
-        npc_point = npc_card.base_point
-
-        outcome = compare_points(player_card, npc_card)
-
-    winning_side = None
-    if outcome == RoundOutcome.WIN:
-        winning_side = Side.PLAYER
-    elif outcome == RoundOutcome.LOSE:
         winning_side = Side.NPC
+    else:
+        outcome = RoundOutcome.EVEN
+        winning_side = None
 
     result = BattleResult(
         outcome=outcome,
@@ -224,21 +211,50 @@ def resolve_round(
         npc_point=npc_point,
     )
 
-    new_state = apply_battle_result(game_state, result)
+    # あいこの場合は効果解決へ、勝負がついた場合は即座に結果反映へ
+    if j_res == JankenResult.DRAW:
+        log_msg = f"R{game_state.round_number}: あなた({player_card.name}) vs NPC({npc_card.name}) -> じゃんけんあいこ！効果解決へ..."
+        new_state = replace(
+            game_state,
+            current_battle=result,
+            battle_log=game_state.battle_log + [log_msg],
+        )
+        new_state = init_effect_resolution(new_state, player_card, npc_card)
+        new_state = process_next_effect(new_state)
 
-    # ログ追加
-    log_msg = f"R{game_state.round_number}: あなた({player_card.name}) vs NPC({npc_card.name}) -> "
-    if outcome == RoundOutcome.WIN:
-        log_msg += "あなたの勝ち！"
-    elif outcome == RoundOutcome.LOSE:
-        log_msg += "NPCの勝ち！"
+        # If process_next_effect returns and phase is still EFFECT_RESOLUTION, it means effects are done and points compared.
+        # But wait! process_next_effect already handles post-effect point resolution, and leaves the state with the updated current_battle!
+        # Actually process_next_effect doesn't call apply_battle_result. We need to call it if effects are done.
+        return finalize_round_if_ready(new_state)
+
     else:
-        log_msg += "引き分け！"
+        log_msg = f"R{game_state.round_number}: あなた({player_card.name}) vs NPC({npc_card.name}) -> "
+        if outcome == RoundOutcome.WIN:
+            log_msg += "あなたの勝ち！"
+        elif outcome == RoundOutcome.LOSE:
+            log_msg += "NPCの勝ち！"
 
-    new_battle_log = list(game_state.battle_log)
-    new_battle_log.append(log_msg)
+        new_state = apply_battle_result(game_state, result)
+        return replace(
+            new_state, phase=Phase.REVEAL, battle_log=new_state.battle_log + [log_msg]
+        )
 
-    return replace(new_state, phase=Phase.REVEAL, battle_log=new_battle_log)
+
+def finalize_round_if_ready(state: GameState) -> GameState:
+    if state.phase in (Phase.INTERACTIVE_EFFECT, Phase.SELECT):
+        return state
+
+    # If we are here, effects are fully resolved and current_battle has the final point outcome.
+    # We must call apply_battle_result.
+    res = state.current_battle
+    # But wait, if removal_activated is True, we already consumed the round and cards were discarded/decked in the effect handler!
+    # So we don't apply_battle_result if removal was activated!
+    if state.removal_activated:
+        # Just proceed to REVEAL phase
+        return replace(state, phase=Phase.REVEAL)
+
+    final_state = apply_battle_result(state, res)
+    return replace(final_state, phase=Phase.REVEAL)
 
 
 def proceed_to_next(game_state: GameState) -> GameState:

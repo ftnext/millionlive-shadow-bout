@@ -12,6 +12,7 @@ from shadow_bout import (
     select_card,
     start_game,
 )
+from shadow_bout.effects import resume_effect
 
 # Constants
 CARD_IDS = [
@@ -68,7 +69,7 @@ def main():
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.rerun()
 
-        elif game_state.phase in [Phase.SELECT, Phase.REVEAL]:
+        elif game_state.phase in [Phase.SELECT, Phase.REVEAL, Phase.INTERACTIVE_EFFECT]:
             st.subheader(f"ラウンド {game_state.round_number} / 4")
 
             # NPC Side
@@ -118,6 +119,16 @@ def main():
 
                 if st.button("次へ", type="primary", use_container_width=True):
                     st.session_state.game_state = proceed_to_next(game_state)
+                    st.rerun()
+
+            elif game_state.phase == Phase.INTERACTIVE_EFFECT:
+                st.markdown("---")
+                st.markdown("#### ── 効果の選択 ──")
+                st.info(
+                    "戦具の効果による選択が発生しました。（※v0.2MVPでは自動処理されます）"
+                )
+                if st.button("選択して次へ", type="primary", use_container_width=True):
+                    st.session_state.game_state = resume_effect(game_state)
                     st.rerun()
 
             elif game_state.phase == Phase.SELECT:

@@ -5,7 +5,7 @@
 {"id": "card_05", "name": "やよい", "kana": "やよい", "janken": "paper", "basePoint": 15, "effect": {"description": "自分のポイント+5する。", "type": "buff", "value": 5}}
 {"id": "card_06", "name": "真", "kana": "まこと", "janken": "scissors", "basePoint": 18, "effect": {"description": "自分の手札のカードと場に出したこのカードを入れ替えることができる。この時に場に出たカードの戦具の効果は発動しない。", "type": "swap", "value": null}}
 {"id": "card_07", "name": "伊織", "kana": "いおり", "janken": "scissors", "basePoint": 10, "effect": {"description": "次の勝負では、自分の場のカードのポイント+3する。", "type": "buff_next", "value": 3}}
-{"id": "card_08", "name": "貴音", "kana": "たかね", "janken": "scissors", "basePoint": 15, "effect": {"description": "相手の手札を全て確認する。", "type": "reveal", "value": null}}
+{"id": "card_08", "name": "貴音", "kana": "たかね", "janken": "scissors", "basePoint": 15, "effect": {"description": "相手の手札を全て確認する。", "type": "reveal_all", "value": null}}
 {"id": "card_09", "name": "律子", "kana": "りつこ", "janken": "paper", "basePoint": 16, "effect": {"description": "次の勝負では、相手の場と手札の全てのカードのマークを「グー」として扱う。", "type": "change_janken", "value": "rock"}}
 {"id": "card_10", "name": "あずさ", "kana": "あずさ", "janken": "scissors", "basePoint": 10, "effect": {"description": "相手の場のカードのポイントは0になる。", "type": "set_point", "value": 0}}
 {"id": "card_11", "name": "亜美", "kana": "あみ", "janken": "scissors", "basePoint": 12, "effect": {"description": "お互いの場のカードを手札に戻し、この勝負をやり直す。この効果は連続で使用することはできない。", "type": "restart", "value": null}}
