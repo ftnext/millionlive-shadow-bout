@@ -40,18 +40,62 @@ def _find_card(cards: list[Card], card_id: str | None) -> Card | None:
     return next((card for card in cards if card.id == card_id), None)
 
 
+def _parse_card_ids(choice: str | None) -> list[str]:
+    if not choice:
+        return []
+    return [card_id for card_id in choice.split(",") if card_id]
+
+
 def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameState:
+    ctx = state.pending_effect_context
     p_state = get_player_state(state, side)
+    if ctx and ctx.step == 1:
+        return_count = int(ctx.payload.get("return_count", 0))
+        selected_ids = _parse_card_ids(choice)
+        returned = [
+            card
+            for card_id in selected_ids
+            if (card := _find_card(p_state.hand, card_id))
+        ][:return_count]
+
+        if len(returned) < return_count:
+            returned_ids = {card.id for card in returned}
+            returned.extend(
+                card for card in p_state.hand if card.id not in returned_ids
+            )
+            returned = returned[:return_count]
+
+        returned_ids = {card.id for card in returned}
+        new_hand = [card for card in p_state.hand if card.id not in returned_ids]
+        new_deck = p_state.deck + returned
+        state = update_player(state, side, hand=new_hand, deck=new_deck)
+        return _finish_interactive_effect(
+            state, "-> 百合子の効果: 山札から2枚引き、2枚を山札の下へ戻した"
+        )
+
     if choice == "draw":
         drawn = p_state.deck[:2]
         new_deck = p_state.deck[2:]
         new_hand = p_state.hand + drawn
-        returned = new_hand[:2]
-        new_hand = new_hand[2:]
-        new_deck = new_deck + returned
         state = update_player(state, side, hand=new_hand, deck=new_deck)
-        return _finish_interactive_effect(
-            state, "-> 百合子の効果: 山札から2枚引き、2枚を山札の下へ戻した"
+        return_count = min(2, len(new_hand))
+        if return_count == 0:
+            return _finish_interactive_effect(
+                state,
+                "-> 百合子の効果: 山札からカードを引けず、戻す手札もなかった",
+            )
+
+        next_ctx = replace(
+            ctx,
+            step=1,
+            payload={"return_count": return_count, "drawn_ids": [c.id for c in drawn]},
+        )
+        return replace(
+            state,
+            phase=Phase.INTERACTIVE_EFFECT,
+            pending_effect_context=next_ctx,
+            battle_log=state.battle_log
+            + [f"-> 百合子の効果: 山札から{len(drawn)}枚引いた。戻す手札を選択中..."],
         )
 
     state = update_player(state, side, point_modifier=p_state.point_modifier + 3)

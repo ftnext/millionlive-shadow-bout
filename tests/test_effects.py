@@ -1,5 +1,9 @@
 from shadow_bout.effects import calculate_effective_point
-from shadow_bout.engine import resolve_round, resume_round_effect
+from shadow_bout.engine import (
+    resolve_npc_pending_effects,
+    resolve_round,
+    resume_round_effect,
+)
 from shadow_bout.models import (
     Card,
     Effect,
@@ -9,7 +13,22 @@ from shadow_bout.models import (
     Phase,
     PlayerState,
     RoundOutcome,
+    Side,
 )
+
+
+class FirstChoiceStrategy:
+    def select_card(self, hand, game_state):
+        return hand[0]
+
+    def choose_effect(self, choices, game_state):
+        return choices[0]
+
+    def select_target(self, candidates, game_state):
+        return candidates[0]
+
+    def should_activate(self, card, game_state):
+        return True
 
 
 def test_basic_point_calculation():
@@ -79,6 +98,65 @@ def test_resume_choose_effect_finalizes_round_with_buff():
     assert state.current_battle.outcome == RoundOutcome.WIN
     assert state.player.won_cards == [other]
     assert state.player.discard == [yuriko]
+
+
+def test_resume_choose_effect_draw_lets_player_select_returned_cards():
+    yuriko = Card(
+        "c26",
+        "百合子",
+        "ゆりこ",
+        Janken.PAPER,
+        15,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 17, None)
+    hand_card = Card("h1", "hand", "はんど", Janken.ROCK, 1)
+    draw_1 = Card("d1", "draw1", "どろー1", Janken.ROCK, 2)
+    draw_2 = Card("d2", "draw2", "どろー2", Janken.SCISSORS, 3)
+    state = GameState(
+        player=PlayerState(hand=[yuriko, hand_card], deck=[draw_1, draw_2]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, yuriko, other)
+    state = resume_round_effect(state, choice="draw")
+
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.side == Side.PLAYER
+    assert state.pending_effect_context.step == 1
+    assert state.player.hand == [hand_card, draw_1, draw_2]
+
+    state = resume_round_effect(state, choice="h1,d2")
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.hand == [draw_1]
+    assert state.player.deck == [hand_card, draw_2]
+
+
+def test_npc_interactive_effect_is_resolved_by_strategy():
+    yuriko = Card(
+        "c26",
+        "百合子",
+        "ゆりこ",
+        Janken.PAPER,
+        15,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 17, None)
+    state = GameState(
+        player=PlayerState(hand=[other]),
+        npc=PlayerState(hand=[yuriko]),
+    )
+
+    state = resolve_round(state, other, yuriko)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resolve_npc_pending_effects(state, FirstChoiceStrategy())
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 17
+    assert state.current_battle.npc_point == 18
+    assert state.current_battle.outcome == RoundOutcome.LOSE
 
 
 def test_resume_removal_effect_skips_winner_and_moves_cards():

@@ -2,6 +2,7 @@ from shadow_bout.cards import load_deck
 from shadow_bout.engine import (
     calculate_final_score,
     proceed_to_next,
+    resolve_npc_pending_effects,
     resume_round_effect,
     select_card,
     start_game,
@@ -30,6 +31,7 @@ __all__ = [
     "start_game",
     "select_card",
     "proceed_to_next",
+    "resolve_npc_pending_effects",
     "resume_round_effect",
     "calculate_final_score",
     "load_deck",

@@ -1,7 +1,9 @@
 import random
 from dataclasses import replace
 
+from shadow_bout.effect_utils import get_player_state
 from shadow_bout.effects import (
+    get_effect_handler,
     init_effect_resolution,
     process_next_effect,
     resume_effect,
@@ -239,7 +241,9 @@ def select_card(
     game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
 ) -> GameState:
     npc_card = npc_strategy.select_card(game_state.npc.hand, game_state)
-    return resolve_round(game_state, player_card, npc_card)
+    return resolve_npc_pending_effects(
+        resolve_round(game_state, player_card, npc_card), npc_strategy
+    )
 
 
 def resolve_round(
@@ -344,6 +348,110 @@ def finalize_round_if_ready(state: GameState) -> GameState:
 
 def resume_round_effect(game_state: GameState, choice: str | None = None) -> GameState:
     return finalize_round_if_ready(resume_effect(game_state, choice))
+
+
+def _find_card_by_id(state: GameState, card_id: str) -> Card | None:
+    card_lists = [
+        [state.current_battle.player_card, state.current_battle.npc_card]
+        if state.current_battle
+        else [],
+        state.player.hand,
+        state.player.deck,
+        state.player.discard,
+        state.player.won_cards,
+        state.player.draw_stock,
+        state.npc.hand,
+        state.npc.deck,
+        state.npc.discard,
+        state.npc.won_cards,
+        state.npc.draw_stock,
+    ]
+    return next(
+        (card for cards in card_lists for card in cards if card.id == card_id), None
+    )
+
+
+def _select_npc_card_ids(
+    candidates: list[Card],
+    count: int,
+    state: GameState,
+    npc_strategy: NpcStrategy,
+) -> list[str]:
+    selected: list[Card] = []
+    remaining = list(candidates)
+    while remaining and len(selected) < count:
+        target = npc_strategy.select_target(remaining, state)
+        selected.append(target)
+        remaining = [card for card in remaining if card.id != target.id]
+    return [card.id for card in selected]
+
+
+def _choose_npc_pending_effect(
+    state: GameState, npc_strategy: NpcStrategy
+) -> str | None:
+    ctx = state.pending_effect_context
+    if ctx is None or ctx.side != Side.NPC:
+        return None
+
+    npc = get_player_state(state, Side.NPC)
+    source_card = _find_card_by_id(state, ctx.card_id)
+
+    if ctx.effect == "choose":
+        if ctx.step == 1:
+            return_count = int(ctx.payload.get("return_count", 0))
+            return ",".join(
+                _select_npc_card_ids(npc.hand, return_count, state, npc_strategy)
+            )
+        return npc_strategy.choose_effect(["buff", "draw"], state)
+
+    if ctx.effect == "copy_hand":
+        candidates = [
+            card
+            for card in npc.hand
+            if card.effect and get_effect_handler(card.effect.type.value)
+        ]
+        if not candidates:
+            candidates = list(npc.hand)
+        if not candidates:
+            return None
+        return npc_strategy.select_target(candidates, state).id
+
+    if ctx.effect == "search_and_swap":
+        if not npc.hand or not npc.deck:
+            return None
+        if npc_strategy.choose_effect(["swap", "skip"], state) == "skip":
+            return None
+        hand_card = npc_strategy.select_target(npc.hand, state)
+        deck_card = npc_strategy.select_target(npc.deck, state)
+        return f"{hand_card.id}:{deck_card.id}"
+
+    if ctx.effect == "swap":
+        if not npc.hand:
+            return None
+        if npc_strategy.choose_effect(["swap", "skip"], state) == "skip":
+            return None
+        return npc_strategy.select_target(npc.hand, state).id
+
+    if ctx.effect == "removal":
+        if source_card and npc_strategy.should_activate(source_card, state):
+            return "activate"
+        return "skip"
+
+    return None
+
+
+def resolve_npc_pending_effects(
+    game_state: GameState, npc_strategy: NpcStrategy
+) -> GameState:
+    state = game_state
+    while (
+        state.phase == Phase.INTERACTIVE_EFFECT
+        and state.pending_effect_context
+        and state.pending_effect_context.side == Side.NPC
+    ):
+        choice = _choose_npc_pending_effect(state, npc_strategy)
+        state = resume_round_effect(state, choice)
+    return state
 
 
 def proceed_to_next(game_state: GameState) -> GameState:

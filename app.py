@@ -6,9 +6,11 @@ from shadow_bout import (
     Phase,
     RandomStrategy,
     RoundOutcome,
+    Side,
     calculate_final_score,
     load_deck,
     proceed_to_next,
+    resolve_npc_pending_effects,
     resume_round_effect,
     select_card,
     start_game,
@@ -34,11 +36,214 @@ CARD_IDS = [
 
 JANKEN_ICONS = {Janken.ROCK: "✊", Janken.SCISSORS: "✌️", Janken.PAPER: "✋"}
 
-st.set_page_config(page_title="Shadow Bout v0.1", layout="wide")
+st.set_page_config(page_title="Shadow Bout v0.2", layout="wide")
 
 
 def render_card_info(card):
-    return f"{card.name} {JANKEN_ICONS[card.janken]}{card.base_point}"
+    return f"{card.name} {JANKEN_ICONS.get(card.janken, '')}{card.base_point}"
+
+
+def render_card_detail(card):
+    with st.container(border=True):
+        st.markdown(f"**{render_card_info(card)}**")
+        if card.effect:
+            st.caption(card.effect.description)
+        else:
+            st.caption("（効果なし）")
+
+
+def card_id_options(cards):
+    labels = {card.id: render_card_info(card) for card in cards}
+    return list(labels), labels
+
+
+def submit_effect_choice(game_state, choice):
+    state = resume_round_effect(game_state, choice)
+    state = resolve_npc_pending_effects(state, st.session_state.npc_strategy)
+    st.session_state.game_state = state
+    st.rerun()
+
+
+def render_known_npc_hand(game_state):
+    known_cards = [
+        card
+        for card in game_state.npc.hand
+        if card.id in game_state.npc.revealed_card_ids
+    ]
+    if known_cards:
+        st.caption("公開中のNPC手札")
+        cols = st.columns(len(known_cards))
+        for i, card in enumerate(known_cards):
+            with cols[i]:
+                st.info(render_card_info(card))
+
+    if game_state.revealed_this_round:
+        st.caption("この勝負で確認したカード")
+        cols = st.columns(len(game_state.revealed_this_round))
+        for i, card in enumerate(game_state.revealed_this_round):
+            with cols[i]:
+                st.info(render_card_info(card))
+
+
+def render_pending_effect_form(game_state):
+    ctx = game_state.pending_effect_context
+    if ctx is None:
+        st.info("効果解決を続行します。")
+        if st.button("次へ", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, None)
+        return
+
+    if ctx.side == Side.NPC:
+        st.info("NPCが効果を選択しています。")
+        if st.button("NPCの選択を解決", type="primary", use_container_width=True):
+            st.session_state.game_state = resolve_npc_pending_effects(
+                game_state, st.session_state.npc_strategy
+            )
+            st.rerun()
+        return
+
+    player = game_state.player
+
+    if ctx.effect == "choose":
+        if ctx.step == 1:
+            return_count = int(ctx.payload.get("return_count", 0))
+            options, labels = card_id_options(player.hand)
+            selected = st.multiselect(
+                f"山札の下へ戻す手札を{return_count}枚選択",
+                options,
+                format_func=lambda card_id: labels[card_id],
+                max_selections=return_count,
+                key="choose_return_cards",
+            )
+            is_ready = len(selected) == return_count
+            if not is_ready:
+                st.caption(f"{return_count}枚ちょうど選んでください。")
+            if st.button(
+                "戻す",
+                type="primary",
+                disabled=not is_ready,
+                use_container_width=True,
+            ):
+                submit_effect_choice(game_state, ",".join(selected))
+            return
+
+        choice = st.radio(
+            "百合子の効果",
+            ["buff", "draw"],
+            format_func=lambda value: {
+                "buff": "自分のポイント+3",
+                "draw": "山札から2枚引き、手札2枚を山札の下へ戻す",
+            }[value],
+            horizontal=True,
+        )
+        if st.button("この効果を発動", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
+    if ctx.effect == "copy_hand":
+        options, labels = card_id_options(player.hand)
+        if not options:
+            st.info("選べる手札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        choice = st.selectbox(
+            "効果を発動する手札",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button(
+            "このカードの効果を発動", type="primary", use_container_width=True
+        ):
+            submit_effect_choice(game_state, choice)
+        return
+
+    if ctx.effect == "search_and_swap":
+        mode = st.radio(
+            "千鶴の効果",
+            ["swap", "skip"],
+            format_func=lambda value: {
+                "swap": "手札と山札を交換する",
+                "skip": "交換しない",
+            }[value],
+            horizontal=True,
+        )
+        if mode == "skip":
+            if st.button("交換しない", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        hand_options, hand_labels = card_id_options(player.hand)
+        deck_options, deck_labels = card_id_options(player.deck)
+        if not hand_options or not deck_options:
+            st.info("交換できる手札または山札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        hand_id = st.selectbox(
+            "山札へ戻す手札",
+            hand_options,
+            format_func=lambda card_id: hand_labels[card_id],
+        )
+        deck_id = st.selectbox(
+            "手札に加える山札",
+            deck_options,
+            format_func=lambda card_id: deck_labels[card_id],
+        )
+        if st.button("交換する", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, f"{hand_id}:{deck_id}")
+        return
+
+    if ctx.effect == "swap":
+        mode = st.radio(
+            "真の効果",
+            ["swap", "skip"],
+            format_func=lambda value: {
+                "swap": "場のカードと手札を入れ替える",
+                "skip": "入れ替えない",
+            }[value],
+            horizontal=True,
+        )
+        if mode == "skip":
+            if st.button("入れ替えない", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        options, labels = card_id_options(player.hand)
+        if not options:
+            st.info("入れ替えられる手札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        choice = st.selectbox(
+            "場に出す手札",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button("入れ替える", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
+    if ctx.effect == "removal":
+        choice = st.radio(
+            "ジュリアの効果",
+            ["activate", "skip"],
+            format_func=lambda value: {
+                "activate": "発動する",
+                "skip": "発動しない",
+            }[value],
+            horizontal=True,
+        )
+        if st.button("決定", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
+    st.info("この効果は追加の入力なしで解決します。")
+    if st.button("次へ", type="primary", use_container_width=True):
+        submit_effect_choice(game_state, None)
 
 
 def main():
@@ -83,6 +288,7 @@ def main():
             st.write(
                 f"勝ち札ポイント: {calculate_final_score(game_state.npc)}pt | あいこストック: {len(game_state.npc.draw_stock)}枚"
             )
+            render_known_npc_hand(game_state)
 
             st.markdown("---")
             st.markdown("#### ── 場 ──")
@@ -112,7 +318,7 @@ def main():
 
                     with st.container(border=True):
                         st.markdown(
-                            f"**{res.npc_card.name} {JANKEN_ICONS[res.npc_card.janken]}{pt_str}**"
+                            f"**{res.npc_card.name} {JANKEN_ICONS.get(res.npc_card.janken, '')}{pt_str}**"
                         )
                         if res.npc_card.effect:
                             st.caption(res.npc_card.effect.description)
@@ -143,7 +349,7 @@ def main():
 
                     with st.container(border=True):
                         st.markdown(
-                            f"**{res.player_card.name} {JANKEN_ICONS[res.player_card.janken]}{pt_str}**"
+                            f"**{res.player_card.name} {JANKEN_ICONS.get(res.player_card.janken, '')}{pt_str}**"
                         )
                         if res.player_card.effect:
                             st.caption(res.player_card.effect.description)
@@ -173,27 +379,19 @@ def main():
             elif game_state.phase == Phase.INTERACTIVE_EFFECT:
                 st.markdown("---")
                 st.markdown("#### ── 効果の選択 ──")
-                st.info(
-                    "戦具の効果による選択が発生しました。（※v0.2MVPでは自動処理されます）"
-                )
-                if st.button("選択して次へ", type="primary", use_container_width=True):
-                    st.session_state.game_state = resume_round_effect(game_state)
-                    st.rerun()
+                render_pending_effect_form(game_state)
 
             elif game_state.phase == Phase.SELECT:
                 st.markdown("---")
                 st.markdown("#### ── あなたの手札 ──")
                 hand = game_state.player.hand
-                cols = st.columns(len(hand))
-                for i, card in enumerate(hand):
-                    with cols[i]:
-                        with st.container(border=True):
-                            st.markdown(f"**{render_card_info(card)}**")
-                            if card.effect:
-                                st.caption(card.effect.description)
-                            else:
-                                st.caption("（効果なし）")
-
+                if not hand:
+                    st.info("出せる手札がありません。")
+                else:
+                    cols = st.columns(len(hand))
+                    for i, card in enumerate(hand):
+                        with cols[i]:
+                            render_card_detail(card)
                             if st.button(
                                 "選択",
                                 key=f"card_{i}",
