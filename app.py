@@ -1,4 +1,5 @@
 from html import escape
+from time import sleep
 
 import streamlit as st
 
@@ -10,11 +11,12 @@ from shadow_bout import (
     RoundOutcome,
     Side,
     calculate_final_score,
+    continue_round_effect_step,
     load_deck,
     proceed_to_next,
-    resolve_npc_pending_effects,
-    resume_round_effect,
-    select_card,
+    resolve_npc_pending_effects_stepwise,
+    resume_round_effect_stepwise,
+    select_card_stepwise,
     start_game,
 )
 from shadow_bout.effects import calculate_effective_point
@@ -109,10 +111,69 @@ def card_id_options(cards):
 
 
 def submit_effect_choice(game_state, choice):
-    state = resume_round_effect(game_state, choice)
-    state = resolve_npc_pending_effects(state, st.session_state.npc_strategy)
+    before_logs = game_state.battle_log
+    state = resume_round_effect_stepwise(game_state, choice)
+    state = resolve_npc_pending_effects_stepwise(state, st.session_state.npc_strategy)
+    queue_effect_toasts(before_logs, state.battle_log)
     st.session_state.game_state = state
     st.rerun()
+
+
+def continue_effect_resolution(game_state, *, auto_rerun=False):
+    before_logs = game_state.battle_log
+    state = continue_round_effect_step(game_state)
+    state = resolve_npc_pending_effects_stepwise(state, st.session_state.npc_strategy)
+    queue_effect_toasts(before_logs, state.battle_log)
+    st.session_state.game_state = state
+    if auto_rerun:
+        show_pending_toasts()
+        sleep(1.0)
+    st.rerun()
+
+
+def effect_log_entries(logs):
+    markers = ("効果発動", "の効果:", "copy_effect")
+    return [log for log in logs if any(marker in log for marker in markers)]
+
+
+def queue_effect_toasts(before_logs, after_logs):
+    before_count = len(before_logs)
+    new_effect_logs = effect_log_entries(after_logs[before_count:])
+    if new_effect_logs:
+        st.session_state.pending_toasts = (
+            st.session_state.get("pending_toasts", []) + new_effect_logs
+        )
+
+
+def show_pending_toasts():
+    pending_toasts = st.session_state.get("pending_toasts", [])
+    for message in pending_toasts:
+        st.toast(message, icon="✨")
+    if pending_toasts:
+        st.session_state.pending_toasts = []
+
+
+def side_label(side):
+    return "あなた" if side == Side.PLAYER else "NPC"
+
+
+def render_effect_resolution_panel(game_state):
+    st.markdown("---")
+    st.markdown("#### ── 戦具効果の解決 ──")
+
+    latest_effect_logs = effect_log_entries(game_state.battle_log)
+    if latest_effect_logs:
+        st.caption(latest_effect_logs[-1])
+
+    if game_state.effect_queue:
+        side, card = game_state.effect_queue[0]
+        st.info(f"{side_label(side)}の{card.name}を解決中...")
+        render_card_detail(card)
+        continue_effect_resolution(game_state, auto_rerun=True)
+        return
+
+    st.info("ポイント比較へ進みます。")
+    continue_effect_resolution(game_state, auto_rerun=True)
 
 
 def render_known_npc_hand(game_state):
@@ -141,7 +202,7 @@ def render_pending_effect_form(game_state):
     if ctx.side == Side.NPC:
         st.info("NPCが効果を選択しています。")
         if st.button("NPCの選択を解決", type="primary", use_container_width=True):
-            st.session_state.game_state = resolve_npc_pending_effects(
+            st.session_state.game_state = resolve_npc_pending_effects_stepwise(
                 game_state, st.session_state.npc_strategy
             )
             st.rerun()
@@ -293,6 +354,7 @@ def render_pending_effect_form(game_state):
 
 def main():
     st.title("陰界戦戯（シャドウバウト）")
+    show_pending_toasts()
 
     # Initialize deck and NPC strategy
     if "deck" not in st.session_state:
@@ -323,7 +385,12 @@ def main():
                 st.session_state.selected_card_id = None
                 st.rerun()
 
-        elif game_state.phase in [Phase.SELECT, Phase.REVEAL, Phase.INTERACTIVE_EFFECT]:
+        elif game_state.phase in [
+            Phase.SELECT,
+            Phase.REVEAL,
+            Phase.EFFECT_RESOLUTION,
+            Phase.INTERACTIVE_EFFECT,
+        ]:
             st.subheader(f"ラウンド {game_state.round_number} / 4")
 
             # NPC Side
@@ -433,6 +500,9 @@ def main():
                 st.markdown("#### ── 効果の選択 ──")
                 render_pending_effect_form(game_state)
 
+            elif game_state.phase == Phase.EFFECT_RESOLUTION:
+                render_effect_resolution_panel(game_state)
+
             elif game_state.phase == Phase.SELECT:
                 st.markdown("---")
                 st.markdown("#### ── あなたの手札 ──")
@@ -473,7 +543,7 @@ def main():
                         disabled=selected_card is None,
                         use_container_width=True,
                     ):
-                        st.session_state.game_state = select_card(
+                        st.session_state.game_state = select_card_stepwise(
                             game_state,
                             selected_card,
                             st.session_state.npc_strategy,

@@ -6,7 +6,9 @@ from shadow_bout.effects import (
     get_effect_handler,
     init_effect_resolution,
     process_next_effect,
+    process_next_effect_step,
     resume_effect,
+    resume_effect_step,
 )
 from shadow_bout.models import (
     BattleResult,
@@ -247,6 +249,13 @@ def select_card(
     )
 
 
+def select_card_stepwise(
+    game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
+) -> GameState:
+    npc_card = npc_strategy.select_card(game_state.npc.hand, game_state)
+    return resolve_round_stepwise(game_state, player_card, npc_card)
+
+
 def resolve_round(
     game_state: GameState, player_card: Card, npc_card: Card
 ) -> GameState:
@@ -321,8 +330,72 @@ def resolve_round(
         )
 
 
+def resolve_round_stepwise(
+    game_state: GameState, player_card: Card, npc_card: Card
+) -> GameState:
+    game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
+    j_res = judge_janken(player_card, npc_card)
+
+    player_point = None
+    npc_point = None
+    outcome = None
+    winning_side = None
+
+    if j_res == JankenResult.WIN:
+        outcome = RoundOutcome.WIN
+        winning_side = Side.PLAYER
+    elif j_res == JankenResult.LOSE:
+        outcome = RoundOutcome.LOSE
+        winning_side = Side.NPC
+    else:
+        outcome = RoundOutcome.EVEN
+        winning_side = None
+
+    result = BattleResult(
+        outcome=outcome,
+        winning_side=winning_side,
+        player_card=player_card,
+        npc_card=npc_card,
+        janken_result=j_res,
+        player_point=player_point,
+        npc_point=npc_point,
+    )
+
+    prefix = f"R{game_state.round_number}:"
+    p_icon = JANKEN_ICONS.get(player_card.janken, "")
+    n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+
+    if j_res == JankenResult.DRAW:
+        p_score = calculate_final_score(game_state.player)
+        n_score = calculate_final_score(game_state.npc)
+        score_str = f"R{game_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
+        log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> じゃんけんあいこ！効果解決へ... {score_str}"
+        new_state = replace(
+            game_state,
+            current_battle=result,
+            battle_log=game_state.battle_log + [log_msg],
+        )
+        return init_effect_resolution(new_state, player_card, npc_card)
+
+    new_state = apply_battle_result(game_state, result)
+    p_score = calculate_final_score(new_state.player)
+    n_score = calculate_final_score(new_state.npc)
+    score_str = f"R{new_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
+    log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> "
+    if outcome == RoundOutcome.WIN:
+        log_msg += f"あなたの勝ち！ {score_str}"
+    elif outcome == RoundOutcome.LOSE:
+        log_msg += f"NPCの勝ち！ {score_str}"
+
+    return replace(
+        new_state, phase=Phase.REVEAL, battle_log=game_state.battle_log + [log_msg]
+    )
+
+
 def finalize_round_if_ready(state: GameState) -> GameState:
     if state.phase in (Phase.INTERACTIVE_EFFECT, Phase.SELECT):
+        return state
+    if state.phase == Phase.EFFECT_RESOLUTION and state.effect_queue:
         return state
 
     # If we are here, effects are fully resolved and current_battle has the final point outcome.
@@ -349,6 +422,16 @@ def finalize_round_if_ready(state: GameState) -> GameState:
 
 def resume_round_effect(game_state: GameState, choice: str | None = None) -> GameState:
     return finalize_round_if_ready(resume_effect(game_state, choice))
+
+
+def continue_round_effect_step(game_state: GameState) -> GameState:
+    return finalize_round_if_ready(process_next_effect_step(game_state))
+
+
+def resume_round_effect_stepwise(
+    game_state: GameState, choice: str | None = None
+) -> GameState:
+    return finalize_round_if_ready(resume_effect_step(game_state, choice))
 
 
 def _find_card_by_id(state: GameState, card_id: str) -> Card | None:
@@ -452,6 +535,20 @@ def resolve_npc_pending_effects(
     ):
         choice = _choose_npc_pending_effect(state, npc_strategy)
         state = resume_round_effect(state, choice)
+    return state
+
+
+def resolve_npc_pending_effects_stepwise(
+    game_state: GameState, npc_strategy: NpcStrategy
+) -> GameState:
+    state = game_state
+    while (
+        state.phase == Phase.INTERACTIVE_EFFECT
+        and state.pending_effect_context
+        and state.pending_effect_context.side == Side.NPC
+    ):
+        choice = _choose_npc_pending_effect(state, npc_strategy)
+        state = resume_round_effect_stepwise(state, choice)
     return state
 
 

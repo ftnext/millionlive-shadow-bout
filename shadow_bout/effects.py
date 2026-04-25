@@ -1,7 +1,9 @@
 from shadow_bout.effect_core import (
     init_effect_resolution,
     process_next_effect,
+    process_next_effect_step,
     resume_effect,
+    resume_effect_step,
 )
 from shadow_bout.effect_handlers import (
     EffectHandler,
@@ -28,10 +30,12 @@ __all__ = [
     "get_player_state",
     "init_effect_resolution",
     "process_next_effect",
+    "process_next_effect_step",
     "register",
     "resolve_post_effect_points",
     "resolve_post_effect_skipped",
     "resume_effect",
+    "resume_effect_step",
     "resume_pending_effect",
     "update_player",
 ]
