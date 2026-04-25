@@ -1,3 +1,5 @@
+from html import escape
+
 import streamlit as st
 
 from shadow_bout import (
@@ -39,6 +41,10 @@ JANKEN_ICONS = {Janken.ROCK: "✊", Janken.SCISSORS: "✌️", Janken.PAPER: "�
 st.set_page_config(page_title="Shadow Bout v0.2", layout="wide")
 
 
+def render_janken_result():
+    st.caption("じゃんけん")
+
+
 def render_card_info(card):
     return f"{card.name} {JANKEN_ICONS.get(card.janken, '')}{card.base_point}"
 
@@ -50,6 +56,35 @@ def render_card_detail(card):
             st.caption(card.effect.description)
         else:
             st.caption("（効果なし）")
+
+
+def render_battle_card(card, pt_str, *, is_highlighted=False):
+    description = card.effect.description if card.effect else "（効果なし）"
+    border_color = "#f2b84b" if is_highlighted else "#d4d6da"
+    background_color = "#fff8e6" if is_highlighted else "#ffffff"
+    shadow = "0 0 0 2px rgba(242, 184, 75, 0.18)" if is_highlighted else "none"
+    safe_description = escape(description).replace("\n", "<br>")
+
+    st.markdown(
+        f"""
+        <div style="
+            border: 2px solid {border_color};
+            border-radius: 8px;
+            background: {background_color};
+            box-shadow: {shadow};
+            padding: 1rem;
+            min-height: 118px;
+        ">
+            <p style="font-weight: 700; font-size: 1.15rem; margin: 0 0 1rem;">
+                {escape(card.name)} {JANKEN_ICONS.get(card.janken, "")}{escape(pt_str)}
+            </p>
+            <p style="color: #80838b; line-height: 1.65; margin: 0;">
+                {safe_description}
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_selectable_card(card, *, is_selected, key):
@@ -304,7 +339,7 @@ def main():
             st.markdown("---")
             st.markdown("#### ── 場 ──")
 
-            battle_cols = st.columns(2)
+            battle_cols = st.columns([5, 2, 5])
             with battle_cols[0]:
                 st.markdown("**NPC**")
                 if game_state.phase == Phase.SELECT:
@@ -327,16 +362,18 @@ def main():
                         else f"{base_pt}"
                     )
 
-                    with st.container(border=True):
-                        st.markdown(
-                            f"**{res.npc_card.name} {JANKEN_ICONS.get(res.npc_card.janken, '')}{pt_str}**"
-                        )
-                        if res.npc_card.effect:
-                            st.caption(res.npc_card.effect.description)
-                        else:
-                            st.caption("（効果なし）")
+                    render_battle_card(
+                        res.npc_card,
+                        pt_str,
+                        is_highlighted=res.janken_result == JankenResult.LOSE,
+                    )
 
             with battle_cols[1]:
+                st.markdown("&nbsp;")
+                if game_state.phase != Phase.SELECT and game_state.current_battle:
+                    render_janken_result()
+
+            with battle_cols[2]:
                 st.markdown("**あなた**")
                 if game_state.phase == Phase.SELECT:
                     selected_card = find_card_by_id(
@@ -365,14 +402,11 @@ def main():
                         else f"{base_pt}"
                     )
 
-                    with st.container(border=True):
-                        st.markdown(
-                            f"**{res.player_card.name} {JANKEN_ICONS.get(res.player_card.janken, '')}{pt_str}**"
-                        )
-                        if res.player_card.effect:
-                            st.caption(res.player_card.effect.description)
-                        else:
-                            st.caption("（効果なし）")
+                    render_battle_card(
+                        res.player_card,
+                        pt_str,
+                        is_highlighted=res.janken_result == JankenResult.WIN,
+                    )
 
             if game_state.phase == Phase.REVEAL:
                 res = game_state.current_battle
