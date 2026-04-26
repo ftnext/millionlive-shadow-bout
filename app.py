@@ -51,6 +51,11 @@ def render_card_info(card):
     return f"{card.name} {JANKEN_ICONS.get(card.janken, '')}{card.base_point}"
 
 
+def render_card_option_label(card):
+    description = card.effect.description if card.effect else "（効果なし）"
+    return f"{render_card_info(card)}｜{description}"
+
+
 def render_card_detail(card):
     with st.container(border=True):
         st.markdown(f"**{render_card_info(card)}**")
@@ -106,7 +111,7 @@ def find_card_by_id(cards, card_id):
 
 
 def card_id_options(cards):
-    labels = {card.id: render_card_info(card) for card in cards}
+    labels = {card.id: render_card_option_label(card) for card in cards}
     return list(labels), labels
 
 
