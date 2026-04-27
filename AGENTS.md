@@ -24,7 +24,7 @@
 `ruff` は `uv tool install ruff` 済みのため、直接実行します。
 
 ```bash
-uv run pytest
+.venv/bin/python -m pytest
 ruff format
 ruff check --fix --extend-select I
 ```
@@ -32,5 +32,5 @@ ruff check --fix --extend-select I
 Streamlit アプリを起動する場合:
 
 ```bash
-uv run streamlit run app.py
+.venv/bin/python -m streamlit run app.py
 ```
