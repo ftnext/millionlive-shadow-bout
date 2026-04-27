@@ -109,6 +109,34 @@ def render_pile_zone(title, cards, *, empty_label="（なし）", icon="🃏"):
             st.caption(f"...ほか {len(cards) - 5}枚")
 
 
+def render_dual_pile_zone(
+    title,
+    *,
+    player_cards,
+    npc_cards,
+    icon="🃏",
+    player_label="あなた",
+    npc_label="NPC",
+):
+    with st.container(border=True):
+        st.markdown(f"**{icon} {title}**")
+        left_col, right_col = st.columns(2)
+
+        with left_col:
+            st.caption(f"{player_label}: {len(player_cards)}枚")
+            if player_cards:
+                st.write(f"- {render_card_info(player_cards[-1])}")
+            else:
+                st.caption("（なし）")
+
+        with right_col:
+            st.caption(f"{npc_label}: {len(npc_cards)}枚")
+            if npc_cards:
+                st.write(f"- {render_card_info(npc_cards[-1])}")
+            else:
+                st.caption("（なし）")
+
+
 def render_selectable_card(card, *, is_selected, key):
     description = card.effect.description if card.effect else "（効果なし）"
     prefix = "選択中\n\n" if is_selected else ""
@@ -437,16 +465,23 @@ def main():
 
             st.markdown("---")
             st.markdown("#### ── 公式プレイマット風レイアウト ──")
-            mat_cols = st.columns([2.2, 2.2, 4.0, 2.2])
+            mat_cols = st.columns([2.4, 2.8, 4.2, 2.4])
 
             with mat_cols[0]:
-                render_pile_zone("勝ち札", game_state.player.won_cards, icon="🏆")
+                render_dual_pile_zone(
+                    "勝ち札",
+                    icon="🏆",
+                    player_cards=game_state.player.won_cards,
+                    npc_cards=game_state.npc.won_cards,
+                )
 
             with mat_cols[1]:
-                combined_draw_stock = (
-                    game_state.player.draw_stock + game_state.npc.draw_stock
+                render_dual_pile_zone(
+                    "あいこストック",
+                    icon="🤝",
+                    player_cards=game_state.player.draw_stock,
+                    npc_cards=game_state.npc.draw_stock,
                 )
-                render_pile_zone("あいこストック", combined_draw_stock, icon="🤝")
 
             with mat_cols[2]:
                 st.markdown("**バトル場**")
@@ -520,8 +555,18 @@ def main():
                         )
 
             with mat_cols[3]:
-                render_pile_zone("山札", game_state.player.deck, icon="🗂️")
-                render_pile_zone("捨札", game_state.player.discard, icon="🗑️")
+                render_dual_pile_zone(
+                    "山札",
+                    icon="🗂️",
+                    player_cards=game_state.player.deck,
+                    npc_cards=game_state.npc.deck,
+                )
+                render_dual_pile_zone(
+                    "捨札",
+                    icon="🗑️",
+                    player_cards=game_state.player.discard,
+                    npc_cards=game_state.npc.discard,
+                )
 
             if game_state.phase == Phase.REVEAL:
                 res = game_state.current_battle
