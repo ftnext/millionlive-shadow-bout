@@ -110,6 +110,18 @@ def card_id_options(cards):
     return list(labels), labels
 
 
+def render_footer_links():
+    st.markdown("---")
+    st.caption("関連リンク")
+    st.markdown(
+        """
+        - [陰界戦戯とは](https://x.com/imasml_theater/status/2047601441863282705)
+        - [もっと知る（ミリシタをダウンロード）](https://millionlive-theaterdays.idolmaster-official.jp/)
+        - [このアプリのソースコード](https://github.com/ftnext/millionlive-shadow-bout)
+        """
+    )
+
+
 def submit_effect_choice(game_state, choice):
     before_logs = game_state.battle_log
     state = resume_round_effect_stepwise(game_state, choice)
@@ -586,6 +598,8 @@ def main():
         st.subheader("📜 バトルログ")
         for log in reversed(game_state.battle_log):
             st.write(log)
+
+    render_footer_links()
 
 
 if __name__ == "__main__":
