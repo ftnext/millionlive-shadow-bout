@@ -261,12 +261,14 @@ def effect_conditional_debuff_next(
     state = update_player(
         state,
         opp_side,
-        next_round_point_modifier=opp_state.next_round_point_modifier + debuff,
+        next_round_conditional_point_modifier_non_wildcard=(
+            opp_state.next_round_conditional_point_modifier_non_wildcard + debuff
+        ),
     )
     return replace(
         state,
         battle_log=state.battle_log
-        + [f"{card.name}の効果発動: 相手の次ラウンドのポイント{debuff:+d}"],
+        + [f"{card.name}の効果発動: 相手の次ラウンド(バー以外)のポイント{debuff:+d}"],
     )
 
 

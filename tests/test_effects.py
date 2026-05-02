@@ -531,14 +531,40 @@ def test_conditional_debuff_next_is_applied_only_on_next_round_for_npc_side():
     )
 
     state = resolve_round(state, other, subaru)
-    assert state.player.next_round_point_modifier == -3
+    assert state.player.next_round_conditional_point_modifier_non_wildcard == -3
     assert state.player.point_modifier == 0
 
     next_state = proceed_to_next(state)
     assert next_state.round_number == 2
-    assert next_state.player.point_modifier == -3
-    assert next_state.player.next_round_point_modifier == 0
+    assert next_state.player.conditional_point_modifier_non_wildcard == -3
+    assert next_state.player.next_round_conditional_point_modifier_non_wildcard == 0
 
     third_state = proceed_to_next(next_state)
     assert third_state.round_number == 3
     assert third_state.player.point_modifier == 0
+
+
+def test_conditional_debuff_next_does_not_apply_to_wildcard():
+    subaru = Card(
+        "c47",
+        "昴",
+        "すばる",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_DEBUFF_NEXT, "next -3", -3),
+    )
+    wildcard = Card("cw", "バー", "ばー", Janken.WILDCARD, 10, None)
+    player_card = Card("pr", "pr", "ぴーあーる", Janken.PAPER, 10, None)
+    npc_other = Card("n2", "n2", "えぬつー", Janken.ROCK, 5, None)
+    player_other = Card("p2", "p2", "ぴーつー", Janken.SCISSORS, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[player_card, wildcard, player_other]),
+        npc=PlayerState(hand=[subaru, npc_other]),
+    )
+
+    state = resolve_round(state, player_card, subaru)
+    next_state = proceed_to_next(state)
+
+    assert next_state.player.conditional_point_modifier_non_wildcard == -3
+    assert next_state.player.point_modifier == 0
+    assert calculate_effective_point(wildcard, next_state.player) == wildcard.base_point

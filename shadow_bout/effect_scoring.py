@@ -1,10 +1,23 @@
 from dataclasses import replace
 
-from shadow_bout.models import Card, GameState, Phase, PlayerState, RoundOutcome, Side
+from shadow_bout.models import (
+    Card,
+    GameState,
+    Janken,
+    Phase,
+    PlayerState,
+    RoundOutcome,
+    Side,
+)
 
 
 def calculate_effective_point(card: Card, player_state: PlayerState) -> int:
-    return card.base_point + player_state.point_modifier
+    conditional = (
+        player_state.conditional_point_modifier_non_wildcard
+        if card.janken != Janken.WILDCARD
+        else 0
+    )
+    return card.base_point + player_state.point_modifier + conditional
 
 
 def resolve_post_effect_skipped(state: GameState) -> GameState:

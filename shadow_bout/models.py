@@ -114,7 +114,9 @@ class PlayerState:
     draw_stock: list[Card] = field(default_factory=list)
     revealed_card_ids: frozenset[str] = frozenset()
     point_modifier: int = 0
+    conditional_point_modifier_non_wildcard: int = 0
     next_round_point_modifier: int = 0
+    next_round_conditional_point_modifier_non_wildcard: int = 0
     effect_negated: bool = False
 
 
