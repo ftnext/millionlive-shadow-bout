@@ -34,3 +34,50 @@ Streamlit アプリを起動する場合:
 ```bash
 .venv/bin/python -m streamlit run app.py
 ```
+
+## GitHub (`gh`) 運用メモ（Codex Cloud）
+
+Codex Cloud では `gh` をセットアップ済み。Issue確認、ブランチpush、PR作成まで `gh` で実行する。
+
+まず認証状態を確認:
+
+```bash
+gh auth status -h github.com
+```
+
+`git push` が認証エラーになる場合は、`gh` の認証を git に反映:
+
+```bash
+gh auth setup-git
+```
+
+Issue確認:
+
+```bash
+gh issue view https://github.com/ftnext/millionlive-shadow-bout/issues/<number>
+```
+
+ブランチpush:
+
+```bash
+git push -u origin <branch>
+```
+
+PR作成（本文のクオート崩れを避けるため `--body-file` 推奨）:
+
+```bash
+cat > /tmp/pr_body.md <<'EOF'
+## 概要
+- ...
+
+## テスト
+- ...
+EOF
+
+gh pr create \
+  -R ftnext/millionlive-shadow-bout \
+  --base main \
+  --head <branch> \
+  --title "feat(...): ..." \
+  --body-file /tmp/pr_body.md
+```
