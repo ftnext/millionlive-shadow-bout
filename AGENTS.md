@@ -81,3 +81,12 @@ gh pr create \
   --title "feat(...): ..." \
   --body-file /tmp/pr_body.md
 ```
+
+### Codex 作業完了条件（必須）
+
+- Codex は、コード変更があり `git commit` した場合、**ユーザーから明示指示がなくても** `gh` コマンドで PR を作成して作業完了とする。
+- 原則として以下をこの順番で実施する:
+  1. `git push -u origin <branch>`（初回のみ `-u`）
+  2. `gh pr create -R ftnext/millionlive-shadow-bout --base main --head <branch> --title "<conventional commit準拠>" --body-file <file>`
+- 既存PRが同一ブランチにある場合は新規作成せず、追加コミットをpushしたうえで既存PRを更新対象とする。
+- 変更がない（コミットしない）場合は PR を作成しない。
