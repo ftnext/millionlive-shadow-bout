@@ -592,25 +592,25 @@ def proceed_to_next(game_state: GameState) -> GameState:
     if game_state.round_number >= 4:
         return replace(game_state, phase=Phase.RESULT)
 
+    if not game_state.player.hand and not game_state.npc.hand:
+        return replace(game_state, phase=Phase.RESULT)
+
     next_round = game_state.round_number + 1
 
     while next_round <= 4:
-        if not game_state.player.hand and not game_state.npc.hand:
-            return replace(game_state, phase=Phase.RESULT)
+        round_state = replace(game_state, round_number=next_round)
+        round_state = apply_next_round_carryover_effects(round_state)
 
-        forfeit_side = check_forfeit(game_state.player, game_state.npc)
+        if not round_state.player.hand and not round_state.npc.hand:
+            return replace(round_state, phase=Phase.RESULT)
+
+        forfeit_side = check_forfeit(round_state.player, round_state.npc)
         if forfeit_side is None:
-            next_state = replace(
-                game_state,
-                round_number=next_round,
-                phase=Phase.SELECT,
-            )
-            return apply_next_round_carryover_effects(next_state)
+            return replace(round_state, phase=Phase.SELECT)
 
-        game_state = apply_forfeit(game_state, forfeit_side)
+        game_state = apply_forfeit(round_state, forfeit_side)
         game_state = replace(
             game_state,
-            round_number=next_round,
             battle_log=game_state.battle_log
             + [format_forfeit_log(next_round, forfeit_side)],
         )
