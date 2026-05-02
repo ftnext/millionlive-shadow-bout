@@ -181,11 +181,13 @@ def reset_round_state(game_state: GameState) -> GameState:
     new_player = replace(
         game_state.player,
         point_modifier=0,
+        conditional_point_modifier_non_wildcard=0,
         effect_negated=False,
     )
     new_npc = replace(
         game_state.npc,
         point_modifier=0,
+        conditional_point_modifier_non_wildcard=0,
         effect_negated=False,
     )
     return replace(
@@ -211,11 +213,21 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
         game_state.player,
         point_modifier=game_state.player.point_modifier + player_bonus,
         next_round_point_modifier=0,
+        conditional_point_modifier_non_wildcard=(
+            game_state.player.conditional_point_modifier_non_wildcard
+            + game_state.player.next_round_conditional_point_modifier_non_wildcard
+        ),
+        next_round_conditional_point_modifier_non_wildcard=0,
     )
     new_npc = replace(
         game_state.npc,
         point_modifier=game_state.npc.point_modifier + npc_bonus,
         next_round_point_modifier=0,
+        conditional_point_modifier_non_wildcard=(
+            game_state.npc.conditional_point_modifier_non_wildcard
+            + game_state.npc.next_round_conditional_point_modifier_non_wildcard
+        ),
+        next_round_conditional_point_modifier_non_wildcard=0,
     )
 
     logs: list[str] = []
