@@ -212,3 +212,26 @@ def test_proceed_to_next_ends_when_both_players_cannot_play(mock_cards):
 
     assert new_state.phase == Phase.RESULT
     assert new_state.round_number == 1
+
+
+def test_proceed_to_next_applies_carryover_once_on_round_start(mock_cards):
+    p_card, n_card, _, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p_card], next_round_point_modifier=2),
+        npc=PlayerState(hand=[n_card], next_round_point_modifier=-1),
+        round_number=1,
+        phase=Phase.REVEAL,
+    )
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.phase == Phase.SELECT
+    assert next_state.player.point_modifier == 2
+    assert next_state.npc.point_modifier == -1
+    assert next_state.player.next_round_point_modifier == 0
+    assert next_state.npc.next_round_point_modifier == 0
+
+    third_state = proceed_to_next(next_state)
+    assert third_state.round_number == 3
+    assert third_state.player.point_modifier == 0
+    assert third_state.npc.point_modifier == 0

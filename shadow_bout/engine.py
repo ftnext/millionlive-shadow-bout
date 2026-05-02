@@ -202,6 +202,40 @@ def reset_round_state(game_state: GameState) -> GameState:
     )
 
 
+def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
+    """次ラウンド開始時に1回だけ適用して消える持ち越し効果を適用する。"""
+    player_bonus = game_state.player.next_round_point_modifier
+    npc_bonus = game_state.npc.next_round_point_modifier
+
+    new_player = replace(
+        game_state.player,
+        point_modifier=game_state.player.point_modifier + player_bonus,
+        next_round_point_modifier=0,
+    )
+    new_npc = replace(
+        game_state.npc,
+        point_modifier=game_state.npc.point_modifier + npc_bonus,
+        next_round_point_modifier=0,
+    )
+
+    logs: list[str] = []
+    if player_bonus:
+        logs.append(
+            f"R{game_state.round_number}: 持ち越し効果適用 あなた ポイント{player_bonus:+d}"
+        )
+    if npc_bonus:
+        logs.append(
+            f"R{game_state.round_number}: 持ち越し効果適用 NPC ポイント{npc_bonus:+d}"
+        )
+
+    return replace(
+        game_state,
+        player=new_player,
+        npc=new_npc,
+        battle_log=game_state.battle_log + logs,
+    )
+
+
 def set_battle_cards_as_played(
     game_state: GameState, player_card: Card, npc_card: Card
 ) -> GameState:
@@ -566,11 +600,12 @@ def proceed_to_next(game_state: GameState) -> GameState:
 
         forfeit_side = check_forfeit(game_state.player, game_state.npc)
         if forfeit_side is None:
-            return replace(
+            next_state = replace(
                 game_state,
                 round_number=next_round,
                 phase=Phase.SELECT,
             )
+            return apply_next_round_carryover_effects(next_state)
 
         game_state = apply_forfeit(game_state, forfeit_side)
         game_state = replace(
