@@ -480,3 +480,65 @@ def test_takane_draw_reveals_both_remaining_hands_persistently():
 
     assert next_state.player.revealed_card_ids == frozenset({p_extra.id})
     assert next_state.npc.revealed_card_ids == frozenset({n_extra.id})
+
+
+def test_buff_next_is_applied_only_on_next_round_for_player_side():
+    iori = Card(
+        "c7",
+        "伊織",
+        "いおり",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.BUFF_NEXT, "next +3", 3),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 8, None)
+    extra_p = Card("p2", "p2", "ぴーつー", Janken.SCISSORS, 5, None)
+    extra_n = Card("n2", "n2", "えぬつー", Janken.PAPER, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[iori, extra_p]),
+        npc=PlayerState(hand=[other, extra_n]),
+    )
+
+    state = resolve_round(state, iori, other)
+    assert state.player.next_round_point_modifier == 3
+    assert state.player.point_modifier == 0
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.player.point_modifier == 3
+    assert next_state.player.next_round_point_modifier == 0
+
+    third_state = proceed_to_next(next_state)
+    assert third_state.round_number == 3
+    assert third_state.player.point_modifier == 0
+
+
+def test_conditional_debuff_next_is_applied_only_on_next_round_for_npc_side():
+    subaru = Card(
+        "c47",
+        "昴",
+        "すばる",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_DEBUFF_NEXT, "next -3", -3),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 12, None)
+    extra_p = Card("p2", "p2", "ぴーつー", Janken.SCISSORS, 5, None)
+    extra_n = Card("n2", "n2", "えぬつー", Janken.ROCK, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[other, extra_p]),
+        npc=PlayerState(hand=[subaru, extra_n]),
+    )
+
+    state = resolve_round(state, other, subaru)
+    assert state.player.next_round_point_modifier == -3
+    assert state.player.point_modifier == 0
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.player.point_modifier == -3
+    assert next_state.player.next_round_point_modifier == 0
+
+    third_state = proceed_to_next(next_state)
+    assert third_state.round_number == 3
+    assert third_state.player.point_modifier == 0

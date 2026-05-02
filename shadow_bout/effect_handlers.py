@@ -235,6 +235,41 @@ def effect_buff_dynamic(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("buff_next")
+def effect_buff_next(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    bonus = int(card.effect.value or 0)
+    state = update_player(
+        state,
+        side,
+        next_round_point_modifier=p_state.next_round_point_modifier + bonus,
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 次ラウンドのポイント{bonus:+d}"],
+    )
+
+
+@register("conditional_debuff_next")
+def effect_conditional_debuff_next(
+    state: GameState, side: Side, card: Card
+) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    debuff = int(card.effect.value or 0)
+    state = update_player(
+        state,
+        opp_side,
+        next_round_point_modifier=opp_state.next_round_point_modifier + debuff,
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の次ラウンドのポイント{debuff:+d}"],
+    )
+
+
 @register("negate")
 def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
