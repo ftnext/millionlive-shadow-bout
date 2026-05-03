@@ -499,6 +499,18 @@ def effect_buff_next(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("buff_scaling")
+def effect_buff_scaling(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    bonus = state.round_number * 2
+    state = update_player(state, side, point_modifier=p_state.point_modifier + bonus)
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: R{state.round_number}のためポイント+{bonus}"],
+    )
+
+
 @register("debuff")
 def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
