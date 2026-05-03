@@ -37,7 +37,8 @@ Streamlit アプリを起動する場合:
 
 ## GitHub (`gh`) 運用メモ（Codex Cloud）
 
-Codex Cloud では `gh` をセットアップ済み。Issue確認、ブランチpush、PR作成まで `gh` で実行する。
+Codex Cloud では `gh` をセットアップ済み。Issue確認、ブランチpush、PR作成まで `gh` で実行する。  
+作業ブランチ名は常に `work` とせず、依頼内容にもとづく短い英語の名前にする（例: `fix-npc-action-log`, `feat-card-filter`）。
 
 まず認証状態を確認:
 
