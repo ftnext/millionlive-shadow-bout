@@ -398,11 +398,8 @@ def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> Game
             state, "-> 麗花の効果: 山札がないため発動できない"
         )
 
-    source_card = (
-        state.current_battle.player_card
-        if side == Side.PLAYER
-        else state.current_battle.npc_card
-    )
+    ctx = state.pending_effect_context
+    source_card = ctx.payload.get("source_card") if ctx else None
     if source_card is None:
         return _finish_interactive_effect(
             state, "-> 麗花の効果: 場のカードがないため発動できない"
@@ -1218,7 +1215,12 @@ def effect_tutor_play(state: GameState, side: Side, card: Card) -> GameState:
             + [f"{card.name}の効果発動: 山札がないため不発"],
         )
 
-    ctx = PendingEffectContext(side=side, card_id=card.id, effect="tutor_play")
+    ctx = PendingEffectContext(
+        side=side,
+        card_id=card.id,
+        effect="tutor_play",
+        payload={"source_card": card},
+    )
     state = replace(
         state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
     )

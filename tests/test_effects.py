@@ -1127,6 +1127,44 @@ def test_tutor_play_effect_swaps_battle_card_with_selected_deck_card(monkeypatch
     assert state.player.deck == [reika, d1]
 
 
+def test_tutor_play_effect_uses_effect_source_even_if_battle_card_changes(monkeypatch):
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor_play", None),
+    )
+    kana = Card(
+        "card_36",
+        "可奈",
+        "かな",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.SWAP_OPPONENT, "swap opponent", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    d1 = Card("d1", "d1", "でっき1", Janken.ROCK, 2, None)
+    d2 = Card("d2", "d2", "でっき2", Janken.SCISSORS, 3, None)
+
+    state = GameState(
+        player=PlayerState(hand=[reika, kana], deck=[d1, d2]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    monkeypatch.setattr(
+        "shadow_bout.effect_handlers.random.shuffle", lambda cards: None
+    )
+
+    state = resolve_round(state, reika, npc_card)
+    state = resume_round_effect(state, choice=d2.id)
+
+    assert state.current_battle.player_card == d2
+    assert reika in state.player.deck
+    assert kana in state.player.hand
+
+
 def test_tutor_play_effect_can_skip():
     reika = Card(
         "card_48",
