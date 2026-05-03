@@ -556,6 +556,40 @@ def test_karen_choose_activate_sets_must_reveal_on_opponent():
     assert state.npc.must_reveal_played_card_rounds == 2
 
 
+def test_immune_blocks_karen_choose_reveal_effect_on_resume():
+    karen = Card(
+        "card_45",
+        "可憐",
+        "かれん",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[karen]),
+        npc=PlayerState(hand=[emily]),
+    )
+
+    state = resolve_round(state, karen, emily)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.npc.must_reveal_played_card_rounds == 0
+    assert any(
+        "可憐の効果: 相手は戦具効果を受けないため不発" in log
+        for log in state.battle_log
+    )
+
+
 def test_umi_choose_multiple_discard_only_applies_buff():
     umi = Card(
         "card_29",
@@ -1770,3 +1804,149 @@ def test_conditional_buff_does_not_apply_when_opponent_won_total_is_not_higher()
     assert state.current_battle.player_point == 14
     assert state.current_battle.npc_point == 14
     assert any("不発" in log for log in state.battle_log)
+
+
+def test_immune_blocks_opponent_set_point_compared_with_non_immune_card():
+    azusa = Card(
+        "card_10",
+        "あずさ",
+        "あずさ",
+        Janken.SCISSORS,
+        10,
+        Effect(EffectType.SET_POINT, "set point", 0),
+    )
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    other = Card("other", "other", "おざー", Janken.SCISSORS, 13, None)
+
+    immune_state = resolve_round(
+        GameState(player=PlayerState(hand=[emily]), npc=PlayerState(hand=[azusa])),
+        emily,
+        azusa,
+    )
+    non_immune_state = resolve_round(
+        GameState(player=PlayerState(hand=[other]), npc=PlayerState(hand=[azusa])),
+        other,
+        azusa,
+    )
+
+    assert immune_state.current_battle.player_point == 13
+    assert non_immune_state.current_battle.player_point == 0
+    assert any("戦具効果を受けないため不発" in log for log in immune_state.battle_log)
+
+
+def test_immune_blocks_opponent_negate_even_before_immune_resolves():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    chihaya = Card(
+        "card_02",
+        "千早",
+        "ちはや",
+        Janken.ROCK,
+        11,
+        Effect(EffectType.NEGATE, "negate", None),
+    )
+    state = GameState(player=PlayerState(hand=[emily]), npc=PlayerState(hand=[chihaya]))
+
+    state = resolve_round(state, emily, chihaya)
+
+    assert state.player.effect_negated is False
+    assert any(
+        "エミリーの効果発動: 相手の戦具効果を受けない" in log
+        for log in state.battle_log
+    )
+
+
+def test_immune_blocks_opponent_reveal_all_and_force_play():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    extra = Card("extra", "extra", "えくすとら", Janken.PAPER, 1, None)
+    takane = Card(
+        "card_08",
+        "貴音",
+        "たかね",
+        Janken.ROCK,
+        15,
+        Effect(EffectType.REVEAL_ALL, "reveal all", None),
+    )
+    force = Card(
+        "card_12",
+        "真美",
+        "まみ",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.FORCE_PLAY, "force play", None),
+    )
+
+    reveal_state = resolve_round(
+        GameState(
+            player=PlayerState(hand=[emily, extra]),
+            npc=PlayerState(hand=[takane]),
+        ),
+        emily,
+        takane,
+    )
+    force_state = resolve_round(
+        GameState(
+            player=PlayerState(hand=[emily, extra]),
+            npc=PlayerState(hand=[force]),
+        ),
+        emily,
+        force,
+    )
+
+    assert reveal_state.player.revealed_card_ids == frozenset()
+    assert reveal_state.revealed_this_round is None
+    assert reveal_state.revealed_this_round_side is None
+    assert force_state.player.forced_card_id is None
+
+
+def test_immune_blocks_only_opponent_side_of_mutual_draw_effect():
+    haruka = Card(
+        "card_01",
+        "春香",
+        "はるか",
+        Janken.SCISSORS,
+        9,
+        Effect(EffectType.DRAW, "mutual draw", 2),
+    )
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    own_deck_1 = Card("own1", "own1", "おうん1", Janken.ROCK, 1, None)
+    own_deck_2 = Card("own2", "own2", "おうん2", Janken.PAPER, 1, None)
+    opp_extra = Card("opp_extra", "opp_extra", "おっぷ", Janken.ROCK, 1, None)
+    opp_deck = Card("opp_deck", "opp_deck", "おっぷでっき", Janken.PAPER, 1, None)
+    state = GameState(
+        player=PlayerState(hand=[haruka], deck=[own_deck_1, own_deck_2]),
+        npc=PlayerState(hand=[emily, opp_extra], deck=[opp_deck]),
+    )
+
+    state = resolve_round(state, haruka, emily)
+
+    assert len(state.player.hand) == 2
+    assert state.npc.hand == [opp_extra]
+    assert state.npc.deck == [opp_deck]

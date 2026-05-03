@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from shadow_bout.models import GameState, PlayerState, Side
+from shadow_bout.models import Card, GameState, PlayerState, Side
 
 
 def update_player(state: GameState, side: Side, **kwargs) -> GameState:
@@ -18,6 +18,26 @@ def get_player_state(state: GameState, side: Side) -> PlayerState:
 
 def get_opponent_side(side: Side) -> Side:
     return Side.NPC if side == Side.PLAYER else Side.PLAYER
+
+
+def get_battle_card(state: GameState, side: Side) -> Card | None:
+    if state.current_battle is None:
+        return None
+    if side == Side.PLAYER:
+        return state.current_battle.player_card
+    return state.current_battle.npc_card
+
+
+def is_immune_to_opponent_effect(
+    state: GameState, source_side: Side, target_side: Side
+) -> bool:
+    if source_side == target_side:
+        return False
+
+    target_card = get_battle_card(state, target_side)
+    return bool(
+        target_card and target_card.effect and target_card.effect.type.value == "immune"
+    )
 
 
 def add_banned_card_id(state: GameState, side: Side, card_id: str) -> GameState:

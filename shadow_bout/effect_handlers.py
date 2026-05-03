@@ -7,6 +7,7 @@ from shadow_bout.effect_utils import (
     clear_forced_card_id,
     get_opponent_side,
     get_player_state,
+    is_immune_to_opponent_effect,
     set_must_reveal_played_card,
     set_must_reveal_played_card_rounds,
     update_player,
@@ -79,6 +80,18 @@ def _parse_card_ids(choice: str | None) -> list[str]:
     return [card_id for card_id in choice.split(",") if card_id]
 
 
+def _immune_blocked_state(state: GameState, card: Card) -> GameState:
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手は戦具効果を受けないため不発"],
+    )
+
+
+def _opponent_is_immune(state: GameState, side: Side) -> bool:
+    return is_immune_to_opponent_effect(state, side, get_opponent_side(side))
+
+
 def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameState:
     ctx = state.pending_effect_context
     if ctx is None:
@@ -148,6 +161,10 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
     if variant == "karen_choose":
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
+        if _opponent_is_immune(state, side):
+            return _finish_interactive_effect(
+                state, "-> 可憐の効果: 相手は戦具効果を受けないため不発"
+            )
         opp_side = get_opponent_side(side)
         state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
         return _finish_interactive_effect(
@@ -219,6 +236,12 @@ def _resume_swap_opponent(
 ) -> GameState:
     ctx = state.pending_effect_context
     opp_side = get_opponent_side(side)
+    source_card = _find_card_by_id(state, side, ctx.card_id if ctx else None)
+    if source_card and is_immune_to_opponent_effect(state, side, opp_side):
+        return _finish_interactive_effect(
+            state, f"-> {source_card.name}の効果: 相手は戦具効果を受けないため不発"
+        )
+
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return _finish_interactive_effect(
@@ -366,6 +389,13 @@ def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameSta
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
 
+    ctx = state.pending_effect_context
+    source_card = _find_card_by_id(state, side, ctx.card_id if ctx else None)
+    if source_card and _opponent_is_immune(state, side):
+        return _finish_interactive_effect(
+            state, f"-> {source_card.name}の効果: 相手は戦具効果を受けないため不発"
+        )
+
     res = state.current_battle
     if side == Side.PLAYER:
         own_state = state.player
@@ -421,6 +451,15 @@ def effect_null(state: GameState, side: Side, card: Card) -> GameState:
     return state
 
 
+@register("immune")
+def effect_immune(state: GameState, side: Side, card: Card) -> GameState:
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の戦具効果を受けない"],
+    )
+
+
 @register("buff")
 def effect_buff(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -471,6 +510,15 @@ def effect_draw(state: GameState, side: Side, card: Card) -> GameState:
         )
 
         opp_side = get_opponent_side(side)
+        if _opponent_is_immune(state, side):
+            return replace(
+                state,
+                battle_log=state.battle_log
+                + [
+                    f"{card.name}の効果発動: 自分は{len(own_drawn)}枚ドロー。相手は戦具効果を受けないため対象外"
+                ],
+            )
+
         opp_state = get_player_state(state, opp_side)
         opp_merged_deck = opp_state.deck + opp_state.hand
         random.shuffle(opp_merged_deck)
@@ -502,6 +550,15 @@ def effect_draw(state: GameState, side: Side, card: Card) -> GameState:
     )
 
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 自分は{len(own_drawn)}枚ドロー。相手は戦具効果を受けないため対象外"
+            ],
+        )
+
     opp_state = get_player_state(state, opp_side)
     opp_drawn = opp_state.deck[:draw_count]
     state = update_player(
@@ -553,6 +610,9 @@ def effect_draw_dynamic(state: GameState, side: Side, card: Card) -> GameState:
 @register("steal_draw")
 def effect_steal_draw(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
 
     if not opp_state.deck:
@@ -588,6 +648,9 @@ def effect_steal_draw(state: GameState, side: Side, card: Card) -> GameState:
 @register("steal_hand")
 def effect_steal_hand(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
 
     if not opp_state.hand:
@@ -663,6 +726,9 @@ def effect_buff_scaling(state: GameState, side: Side, card: Card) -> GameState:
 @register("debuff")
 def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
 
     if card.id in ("card_04", "c4"):
@@ -704,6 +770,9 @@ def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
 @register("set_point")
 def effect_set_point(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
 
     set_value = int(card.effect.value or 0)
@@ -763,6 +832,9 @@ def effect_conditional_debuff_next(
     state: GameState, side: Side, card: Card
 ) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
     state = update_player(
@@ -782,6 +854,9 @@ def effect_conditional_debuff_next(
 @register("debuff_persistent")
 def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
     state = update_player(
@@ -805,6 +880,9 @@ def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameSt
 @register("debuff_conditional")
 def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
 
@@ -854,6 +932,9 @@ def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameS
 @register("negate")
 def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     state = update_player(state, opp_side, effect_negated=True)
     return replace(
         state,
@@ -865,6 +946,9 @@ def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
 @register("force_play")
 def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return replace(
@@ -885,6 +969,9 @@ def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
 @register("ban")
 def effect_ban(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return replace(
@@ -916,6 +1003,9 @@ def effect_ban(state: GameState, side: Side, card: Card) -> GameState:
 @register("reveal")
 def effect_reveal(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return state
@@ -933,6 +1023,9 @@ def effect_reveal(state: GameState, side: Side, card: Card) -> GameState:
 @register("reveal_all")
 def effect_reveal_all(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     opp_state = get_player_state(state, opp_side)
     new_revealed = opp_state.revealed_card_ids | {
         hand_card.id for hand_card in opp_state.hand
@@ -952,6 +1045,9 @@ def effect_reveal_all(state: GameState, side: Side, card: Card) -> GameState:
 
 @register("restart")
 def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     if state.last_restart_round == state.round_number - 1:
         return replace(
             state,
@@ -1098,6 +1194,9 @@ def effect_swap(state: GameState, side: Side, card: Card) -> GameState:
 
 @register("swap_opponent")
 def effect_swap_opponent(state: GameState, side: Side, card: Card) -> GameState:
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     ctx = PendingEffectContext(side=side, card_id=card.id, effect="swap_opponent")
     state = replace(
         state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
@@ -1111,6 +1210,9 @@ def effect_swap_opponent(state: GameState, side: Side, card: Card) -> GameState:
 
 @register("removal")
 def effect_removal(state: GameState, side: Side, card: Card) -> GameState:
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     ctx = PendingEffectContext(side=side, card_id=card.id, effect="removal")
     state = replace(
         state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
@@ -1155,6 +1257,9 @@ def effect_reorder(state: GameState, side: Side, card: Card) -> GameState:
 @register("curse")
 def effect_curse(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
     state = set_must_reveal_played_card(state, opp_side, True)
     return replace(
         state,
