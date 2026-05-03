@@ -1040,6 +1040,7 @@ def test_swap_opponent_effect_swaps_with_random_opponent_hand_card():
     )
 
     state = resolve_round(state, kana, npc_card)
+    state = resume_round_effect(state, choice="reveal")
     state = resume_round_effect(state, choice="swap")
 
     assert state.current_battle.npc_card.id in {hand1.id, hand2.id}
@@ -1064,6 +1065,7 @@ def test_swap_opponent_effect_can_skip():
     )
 
     state = resolve_round(state, kana, npc_card)
+    state = resume_round_effect(state, choice="reveal")
     state = resume_round_effect(state, choice=None)
 
     assert state.current_battle.npc_card == npc_card

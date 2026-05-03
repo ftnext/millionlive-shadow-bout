@@ -416,6 +416,42 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "swap_opponent":
+        opponent = game_state.npc if ctx.side == Side.PLAYER else game_state.player
+        if not opponent.hand:
+            st.info("相手の手札がないため入れ替えできません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        if ctx.step == 0:
+            st.info("相手手札をランダムに1枚確認します。")
+            if st.button("確認する", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "reveal")
+            return
+
+        target_id = ctx.payload.get("target_id")
+        target = next((card for card in opponent.hand if card.id == target_id), None)
+        if target is None:
+            st.warning("確認したカードが見つかりません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        st.write(f"確認したカード: **{target.name}**（{target.id}）")
+        mode = st.radio(
+            "可奈の効果",
+            ["swap", "skip"],
+            format_func=lambda value: {
+                "swap": "このカードと相手の場カードを入れ替える",
+                "skip": "入れ替えない",
+            }[value],
+            horizontal=True,
+        )
+        if st.button("決定", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, "swap" if mode == "swap" else None)
+        return
+
     if ctx.effect == "removal":
         choice = st.radio(
             "ジュリアの効果",

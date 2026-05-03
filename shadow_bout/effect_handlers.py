@@ -217,16 +217,30 @@ def _resume_swap(state: GameState, side: Side, choice: str | None) -> GameState:
 def _resume_swap_opponent(
     state: GameState, side: Side, choice: str | None
 ) -> GameState:
+    ctx = state.pending_effect_context
     opp_side = get_opponent_side(side)
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return _finish_interactive_effect(
             state, "-> 可奈の効果: 相手の手札がないため入れ替えられない"
         )
+    if ctx and ctx.step == 0:
+        target = random.choice(opp_state.hand)
+        next_ctx = replace(ctx, step=1, payload={**ctx.payload, "target_id": target.id})
+        return replace(
+            state,
+            pending_effect_context=next_ctx,
+            battle_log=state.battle_log
+            + [f"-> 可奈の効果: 相手手札から{target.name}を確認した"],
+        )
+
+    target = _find_card(opp_state.hand, ctx.payload.get("target_id") if ctx else None)
+    if target is None:
+        return _finish_interactive_effect(
+            state, "-> 可奈の効果: 確認したカードが手札にないため入れ替えない"
+        )
     if choice != "swap":
         return _finish_interactive_effect(state, "-> 可奈の効果: 入れ替えない")
-
-    target = random.choice(opp_state.hand)
     res = state.current_battle
     if opp_side == Side.PLAYER:
         old_card = res.player_card
