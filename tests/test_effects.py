@@ -1021,6 +1021,77 @@ def test_steal_hand_effect_noops_when_opponent_hand_is_empty():
     assert state.npc.hand == []
 
 
+def test_swap_opponent_effect_swaps_with_random_opponent_hand_card():
+    random.seed(0)
+    kana = Card(
+        "card_36",
+        "可奈",
+        "かな",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.SWAP_OPPONENT, "swap opponent", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    hand1 = Card("n_h1", "n_h1", "えぬ手1", Janken.ROCK, 2, None)
+    hand2 = Card("n_h2", "n_h2", "えぬ手2", Janken.SCISSORS, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[kana]),
+        npc=PlayerState(hand=[npc_card, hand1, hand2]),
+    )
+
+    state = resolve_round(state, kana, npc_card)
+    state = resume_round_effect(state, choice="swap")
+
+    assert state.current_battle.npc_card.id in {hand1.id, hand2.id}
+    assert npc_card in state.npc.hand
+    assert len(state.npc.hand) == 2
+
+
+def test_swap_opponent_effect_can_skip():
+    kana = Card(
+        "card_36",
+        "可奈",
+        "かな",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.SWAP_OPPONENT, "swap opponent", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    hand1 = Card("n_h1", "n_h1", "えぬ手1", Janken.ROCK, 2, None)
+    state = GameState(
+        player=PlayerState(hand=[kana]),
+        npc=PlayerState(hand=[npc_card, hand1]),
+    )
+
+    state = resolve_round(state, kana, npc_card)
+    state = resume_round_effect(state, choice=None)
+
+    assert state.current_battle.npc_card == npc_card
+    assert state.npc.hand == [hand1]
+
+
+def test_swap_opponent_effect_noops_when_opponent_hand_is_empty():
+    kana = Card(
+        "card_36",
+        "可奈",
+        "かな",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.SWAP_OPPONENT, "swap opponent", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    state = GameState(
+        player=PlayerState(hand=[kana]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, kana, npc_card)
+    state = resume_round_effect(state, choice="swap")
+
+    assert state.current_battle.npc_card == npc_card
+    assert state.npc.hand == []
+
+
 def test_draw_effect_draws_two_cards_for_both_sides():
     emily = Card(
         "card_20",
