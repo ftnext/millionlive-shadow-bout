@@ -261,6 +261,54 @@ def _resume_reorder(state: GameState, side: Side, choice: str | None) -> GameSta
     return _finish_interactive_effect(state, "-> 茜の効果: 山札の順番を入れ替えた")
 
 
+def _resume_choose_multiple(
+    state: GameState, side: Side, choice: str | None
+) -> GameState:
+    p_state = get_player_state(state, side)
+    selected = set(_parse_card_ids(choice))
+
+    can_discard = bool(p_state.hand)
+    can_draw = bool(p_state.deck)
+
+    do_discard = "discard_buff" in selected and can_discard
+    do_draw = "draw_debuff" in selected and can_draw
+
+    if not do_discard and not do_draw:
+        return _finish_interactive_effect(state, "-> 海美の効果: 発動可能な効果がない")
+
+    logs: list[str] = []
+
+    if do_discard:
+        discarded = p_state.hand[0]
+        p_state = replace(
+            p_state,
+            hand=p_state.hand[1:],
+            discard=p_state.discard + [discarded],
+            point_modifier=p_state.point_modifier + 5,
+        )
+        logs.append(f"{discarded.name}を捨札にしてポイント+5")
+
+    if do_draw:
+        drawn = p_state.deck[0]
+        p_state = replace(
+            p_state,
+            hand=p_state.hand + [drawn],
+            deck=p_state.deck[1:],
+            point_modifier=p_state.point_modifier - 2,
+        )
+        logs.append(f"{drawn.name}を1枚引いてポイント-2")
+
+    state = update_player(
+        state,
+        side,
+        hand=p_state.hand,
+        deck=p_state.deck,
+        discard=p_state.discard,
+        point_modifier=p_state.point_modifier,
+    )
+    return _finish_interactive_effect(state, f"-> 海美の効果: {'、'.join(logs)}")
+
+
 def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameState:
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
@@ -307,6 +355,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_salvage(state, side, choice)
     if ctx.effect == "reorder":
         return _resume_reorder(state, side, choice)
+    if ctx.effect == "choose_multiple":
+        return _resume_choose_multiple(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -901,6 +951,26 @@ def effect_choose(state: GameState, side: Side, card: Card) -> GameState:
     )
     return replace(
         state, battle_log=state.battle_log + [f"{card.name}の効果発動: 選択待機中..."]
+    )
+
+
+@register("choose_multiple")
+def effect_choose_multiple(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    if not p_state.hand and not p_state.deck:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 発動可能な効果がないため不発"],
+        )
+
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="choose_multiple")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 複数選択待機中..."],
     )
 
 

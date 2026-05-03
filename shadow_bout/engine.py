@@ -708,6 +708,14 @@ def _choose_npc_pending_effect(
         random.shuffle(shuffled)
         return ",".join(card.id for card in shuffled)
 
+    if ctx.effect == "choose_multiple":
+        choices: list[str] = []
+        if npc.hand:
+            choices.append("discard_buff")
+        if npc.deck:
+            choices.append("draw_debuff")
+        return ",".join(choices) if choices else None
+
     return None
 
 
