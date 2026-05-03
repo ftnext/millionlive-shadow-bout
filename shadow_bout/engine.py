@@ -283,20 +283,12 @@ def set_battle_cards_as_played(
     new_player = replace(
         game_state.player,
         hand=[card for card in game_state.player.hand if card.id != player_card.id],
-        forced_card_id=(
-            None
-            if game_state.player.forced_card_id == player_card.id
-            else game_state.player.forced_card_id
-        ),
+        forced_card_id=None,
     )
     new_npc = replace(
         game_state.npc,
         hand=[card for card in game_state.npc.hand if card.id != npc_card.id],
-        forced_card_id=(
-            None
-            if game_state.npc.forced_card_id == npc_card.id
-            else game_state.npc.forced_card_id
-        ),
+        forced_card_id=None,
     )
     return replace(game_state, player=new_player, npc=new_npc)
 

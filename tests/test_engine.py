@@ -99,6 +99,7 @@ def test_select_card_allows_play_when_forced_card_is_no_longer_in_hand(mock_card
     next_state = select_card(state, p1, FirstCardStrategy())
 
     assert next_state.phase == Phase.REVEAL
+    assert next_state.player.forced_card_id is None
 
 
 def test_select_card_rejects_when_npc_has_no_playable_card(mock_cards):
