@@ -107,4 +107,33 @@ def resolve_post_effect_points(state: GameState) -> GameState:
                 ],
             )
 
+    for side, draw_count in state.pending_draw_on_win:
+        if side != winning_side:
+            continue
+
+        if side == Side.PLAYER:
+            drawn = updated_state.player.deck[:draw_count]
+            updated_state = replace(
+                updated_state,
+                player=replace(
+                    updated_state.player,
+                    hand=updated_state.player.hand + drawn,
+                    deck=updated_state.player.deck[len(drawn) :],
+                ),
+                battle_log=updated_state.battle_log
+                + [f"効果発動: 勝利したため{len(drawn)}枚ドロー"],
+            )
+        else:
+            drawn = updated_state.npc.deck[:draw_count]
+            updated_state = replace(
+                updated_state,
+                npc=replace(
+                    updated_state.npc,
+                    hand=updated_state.npc.hand + drawn,
+                    deck=updated_state.npc.deck[len(drawn) :],
+                ),
+                battle_log=updated_state.battle_log
+                + [f"効果発動: 勝利したため{len(drawn)}枚ドロー"],
+            )
+
     return updated_state

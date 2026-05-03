@@ -1033,6 +1033,58 @@ def effect_conditional_debuff_next(
     )
 
 
+@register("conditional_debuff_draw")
+def effect_conditional_debuff_draw(
+    state: GameState, side: Side, card: Card
+) -> GameState:
+    opp_side = get_opponent_side(side)
+    current_battle = state.current_battle
+    if current_battle is None:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 場のカードがないため不発"],
+        )
+
+    opp_state = get_player_state(state, opp_side)
+    opp_card = (
+        current_battle.npc_card if opp_side == Side.NPC else current_battle.player_card
+    )
+    conditional = (
+        opp_state.conditional_point_modifier_non_wildcard
+        if opp_card.janken != Janken.WILDCARD
+        else 0
+    )
+    opponent_point = opp_card.base_point + opp_state.point_modifier + conditional
+    debuff = int(card.effect.value or 0)
+    draw_count = 1
+    logs = [f"勝利時に{draw_count}枚ドローを予約"]
+
+    if opponent_point <= 15:
+        if _opponent_is_immune(state, side):
+            logs.append(
+                f"相手のポイント({opponent_point})は15以下だが、"
+                "相手は戦具効果を受けないためポイント減少は不発"
+            )
+        else:
+            state = update_player(
+                state,
+                opp_side,
+                point_modifier=opp_state.point_modifier + debuff,
+            )
+            logs.append(
+                f"相手のポイント({opponent_point})が15以下のため相手{debuff:+d}"
+            )
+    else:
+        logs.append(f"相手のポイント({opponent_point})が16以上のためポイント減少は不発")
+
+    return replace(
+        state,
+        pending_draw_on_win=state.pending_draw_on_win + ((side, draw_count),),
+        battle_log=state.battle_log + [f"{card.name}の効果発動: {'、'.join(logs)}"],
+    )
+
+
 @register("debuff_persistent")
 def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
@@ -1262,6 +1314,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         effect_queue=[],
         last_restart_round=state.round_number,
         pending_conditional_debuff_on_loss=(),
+        pending_draw_on_win=(),
         point_match_effects=(),
     )
 
