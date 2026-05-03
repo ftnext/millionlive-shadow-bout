@@ -7,7 +7,14 @@ from shadow_bout.effect_utils import (
     get_player_state,
     update_player,
 )
-from shadow_bout.models import Card, GameState, PendingEffectContext, Phase, Side
+from shadow_bout.models import (
+    Card,
+    GameState,
+    PendingEffectContext,
+    PersistentPointEffect,
+    Phase,
+    Side,
+)
 
 EffectHandler = Callable[[GameState, Side, Card], GameState]
 _registry: dict[str, EffectHandler] = {}
@@ -269,6 +276,29 @@ def effect_conditional_debuff_next(
         state,
         battle_log=state.battle_log
         + [f"{card.name}の効果発動: 相手の次ラウンド(バー以外)のポイント{debuff:+d}"],
+    )
+
+
+@register("debuff_persistent")
+def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    debuff = int(card.effect.value or 0)
+    state = update_player(
+        state, opp_side, point_modifier=opp_state.point_modifier + debuff
+    )
+    # 「このターンと次のターン」: 現ターンは即時適用し、次ターン分を継続効果として保持
+    updated_opp_state = get_player_state(state, opp_side)
+    state = update_player(
+        state,
+        opp_side,
+        persistent_point_effects=updated_opp_state.persistent_point_effects
+        + (PersistentPointEffect(value=debuff, remaining_turns=1),),
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手のポイントをこのターンと次ターン{debuff:+d}"],
     )
 
 
