@@ -989,18 +989,18 @@ def test_debuff_conditional_elena_does_not_apply_when_negated():
         "千早",
         "ちはや",
         Janken.ROCK,
-        13,
+        11,
         Effect(EffectType.NEGATE, "negate", None),
     )
     state = GameState(
         player=PlayerState(hand=[elena]),
-        npc=PlayerState(hand=[chihaya]),
+        npc=PlayerState(hand=[chihaya], point_modifier=2),
     )
 
     state = resolve_round(state, elena, chihaya)
 
     assert state.current_battle.outcome == RoundOutcome.LOSE
-    assert state.player.next_round_conditional_point_modifier_non_wildcard == 0
+    assert state.npc.next_round_conditional_point_modifier_non_wildcard == 0
 
 
 def test_debuff_conditional_iku_applies_from_round_3():
