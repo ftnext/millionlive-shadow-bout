@@ -466,6 +466,20 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "set_point_match":
+        choice = st.radio(
+            "歩の効果",
+            ["activate", "skip"],
+            format_func=lambda value: {
+                "activate": "発動する",
+                "skip": "発動しない",
+            }[value],
+            horizontal=True,
+        )
+        if st.button("決定", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
     if ctx.effect == "reorder":
         options, labels = card_id_options(player.deck)
         if len(options) <= 1:

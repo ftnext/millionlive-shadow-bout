@@ -132,6 +132,12 @@ class PersistentPointEffect:
 
 
 @dataclass(frozen=True)
+class PointMatchEffect:
+    source_side: Side
+    target_side: Side
+
+
+@dataclass(frozen=True)
 class BattleResult:
     outcome: RoundOutcome  # WIN / LOSE / EVEN
     winning_side: Side | None  # EVEN の場合は None
@@ -167,3 +173,4 @@ class GameState:
     revealed_this_round: list[Card] | None = None
     revealed_this_round_side: Side | None = None
     pending_conditional_debuff_on_loss: tuple[tuple[Side, int], ...] = ()
+    point_match_effects: tuple[PointMatchEffect, ...] = ()

@@ -1502,6 +1502,84 @@ def test_set_point_works_consistently_with_existing_point_modifier_order():
     assert state.current_battle.outcome == RoundOutcome.WIN
 
 
+def test_set_point_match_ayumu_matches_opponent_final_point_when_activated():
+    ayumu = Card(
+        "card_34",
+        "歩",
+        "あゆむ",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.SET_POINT_MATCH, "set point match", None),
+    )
+    opponent = Card("op", "opponent", "おざー", Janken.ROCK, 18, None)
+    state = GameState(
+        player=PlayerState(hand=[ayumu]),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, ayumu, opponent)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.current_battle.player_point == 12
+    assert state.current_battle.npc_point == 12
+    assert state.current_battle.outcome == RoundOutcome.EVEN
+
+
+def test_set_point_match_ayumu_can_be_skipped():
+    ayumu = Card(
+        "card_34",
+        "歩",
+        "あゆむ",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.SET_POINT_MATCH, "set point match", None),
+    )
+    opponent = Card("op", "opponent", "おざー", Janken.ROCK, 18, None)
+    state = GameState(
+        player=PlayerState(hand=[ayumu]),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, ayumu, opponent)
+    state = resume_round_effect(state, choice="skip")
+
+    assert state.current_battle.player_point == 12
+    assert state.current_battle.npc_point == 18
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+
+
+def test_set_point_match_ayumu_matches_after_later_point_modifier():
+    ayumu = Card(
+        "card_34",
+        "歩",
+        "あゆむ",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.SET_POINT_MATCH, "set point match", None),
+    )
+    takane = Card(
+        "c8",
+        "貴音",
+        "たかね",
+        Janken.ROCK,
+        14,
+        Effect(EffectType.BUFF, "+1", 1),
+    )
+    state = GameState(
+        player=PlayerState(hand=[ayumu]),
+        npc=PlayerState(hand=[takane]),
+    )
+
+    state = resolve_round(state, ayumu, takane)
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.current_battle.player_point == 12
+    assert state.current_battle.npc_point == 12
+    assert state.current_battle.outcome == RoundOutcome.EVEN
+
+
 def test_debuff_persistent_applies_current_and_next_round_only():
     hinata = Card(
         "c35",
