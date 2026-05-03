@@ -4,6 +4,7 @@ from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
     continue_round_effect_step,
     proceed_to_next,
+    process_next_effect,
     resolve_npc_pending_effects,
     resolve_round,
     resolve_round_stepwise,
@@ -290,6 +291,38 @@ def test_resume_salvage_effect_uses_card_defined_penalty_value():
     )
 
     state = resolve_round(state, fuka, other)
+    state = resume_round_effect(state, choice="cx1")
+
+    assert state.current_battle.player_point == 8
+
+
+def test_resume_salvage_effect_copy_hand_uses_copied_card_penalty_value():
+    anna = Card(
+        "c4",
+        "杏奈",
+        "あんな",
+        Janken.ROCK,
+        14,
+        Effect(EffectType.COPY_HAND, "copy_hand", None),
+    )
+    salvage = Card(
+        "c41x",
+        "別風花",
+        "べつふうか",
+        Janken.PAPER,
+        10,
+        Effect(EffectType.SALVAGE, "salvage", -6),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.ROCK, 14, None)
+    state = GameState(
+        player=PlayerState(hand=[anna, salvage], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, anna, other)
+    state = resume_round_effect(state, choice="c41x")
+    state = process_next_effect(state)
     state = resume_round_effect(state, choice="cx1")
 
     assert state.current_battle.player_point == 8

@@ -52,6 +52,27 @@ def _find_card(cards: list[Card], card_id: str | None) -> Card | None:
     return next((card for card in cards if card.id == card_id), None)
 
 
+def _find_card_by_id(state: GameState, side: Side, card_id: str | None) -> Card | None:
+    p_state = get_player_state(state, side)
+    card_lists = [
+        p_state.hand,
+        p_state.deck,
+        p_state.discard,
+        p_state.won_cards,
+        p_state.draw_stock,
+    ]
+    if state.current_battle is not None:
+        card_lists.append(
+            [
+                state.current_battle.player_card,
+                state.current_battle.npc_card,
+            ]
+        )
+    return next(
+        (card for cards in card_lists for card in cards if card.id == card_id), None
+    )
+
+
 def _parse_card_ids(choice: str | None) -> list[str]:
     if not choice:
         return []
@@ -203,15 +224,7 @@ def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameSta
         return _finish_interactive_effect(state, "-> 風花の効果: 回収しない")
 
     ctx = state.pending_effect_context
-    source_card = None
-    if ctx is not None and state.current_battle is not None:
-        source_card = (
-            state.current_battle.player_card
-            if side == Side.PLAYER
-            else state.current_battle.npc_card
-        )
-        if source_card.id != ctx.card_id:
-            source_card = None
+    source_card = _find_card_by_id(state, side, ctx.card_id if ctx else None)
     penalty = int(
         source_card.effect.value if source_card and source_card.effect else -3
     )
