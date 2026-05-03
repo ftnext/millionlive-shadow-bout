@@ -695,6 +695,13 @@ def _choose_npc_pending_effect(
             return "activate"
         return "skip"
 
+    if ctx.effect == "salvage":
+        if not npc.discard:
+            return None
+        if source_card and not npc_strategy.should_activate(source_card, state):
+            return None
+        return npc_strategy.select_target(npc.discard, state).id
+
     return None
 
 

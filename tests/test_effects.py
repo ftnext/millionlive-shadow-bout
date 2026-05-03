@@ -4,6 +4,7 @@ from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
     continue_round_effect_step,
     proceed_to_next,
+    process_next_effect,
     resolve_npc_pending_effects,
     resolve_round,
     resolve_round_stepwise,
@@ -244,6 +245,140 @@ def test_npc_interactive_effect_is_resolved_by_strategy():
     assert state.current_battle.player_point == 17
     assert state.current_battle.npc_point == 18
     assert state.current_battle.outcome == RoundOutcome.LOSE
+
+
+def test_resume_salvage_effect_recovers_from_discard_with_penalty():
+    fuka = Card(
+        "card_41",
+        "風花",
+        "ふうか",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.SALVAGE, "salvage", -3),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.SCISSORS, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[fuka], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, fuka, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="cx1")
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.hand == [recovered]
+    assert state.player.discard == []
+    assert state.current_battle.player_point == 10
+
+
+def test_resume_salvage_effect_uses_card_defined_penalty_value():
+    fuka = Card(
+        "card_41",
+        "風花",
+        "ふうか",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.SALVAGE, "salvage", -5),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.SCISSORS, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[fuka], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, fuka, other)
+    state = resume_round_effect(state, choice="cx1")
+
+    assert state.current_battle.player_point == 8
+
+
+def test_resume_salvage_effect_copy_hand_uses_copied_card_penalty_value():
+    anna = Card(
+        "c4",
+        "杏奈",
+        "あんな",
+        Janken.ROCK,
+        14,
+        Effect(EffectType.COPY_HAND, "copy_hand", None),
+    )
+    salvage = Card(
+        "c41x",
+        "別風花",
+        "べつふうか",
+        Janken.PAPER,
+        10,
+        Effect(EffectType.SALVAGE, "salvage", -6),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.ROCK, 14, None)
+    state = GameState(
+        player=PlayerState(hand=[anna, salvage], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, anna, other)
+    state = resume_round_effect(state, choice="c41x")
+    state = process_next_effect(state)
+    state = resume_round_effect(state, choice="cx1")
+
+    assert state.current_battle.player_point == 8
+
+
+def test_resume_salvage_effect_skip_keeps_state_unchanged():
+    fuka = Card(
+        "card_41",
+        "風花",
+        "ふうか",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.SALVAGE, "salvage", -3),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.SCISSORS, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[fuka], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, fuka, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice=None)
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.hand == []
+    assert state.player.discard == [recovered]
+    assert state.current_battle.player_point == 13
+
+
+def test_resume_salvage_effect_noops_when_discard_is_empty():
+    fuka = Card(
+        "card_41",
+        "風花",
+        "ふうか",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.SALVAGE, "salvage", -3),
+    )
+    other = Card("cx2", "other", "おざー", Janken.SCISSORS, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[fuka], discard=[]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, fuka, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="any")
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.hand == []
+    assert state.player.discard == []
+    assert state.current_battle.player_point == 13
 
 
 def test_resume_removal_effect_skips_winner_and_moves_cards():
