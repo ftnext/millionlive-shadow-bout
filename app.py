@@ -94,6 +94,49 @@ def render_battle_card(card, pt_str, *, is_highlighted=False):
     )
 
 
+def render_pile_zone(title, cards, *, empty_label="（なし）", icon="🃏"):
+    with st.container(border=True):
+        st.markdown(f"**{icon} {title}**")
+        if not cards:
+            st.caption(empty_label)
+            return
+
+        st.caption(f"{len(cards)}枚")
+        preview_cards = list(reversed(cards[-5:]))
+        for card in preview_cards:
+            st.write(f"- {render_card_info(card)}")
+        if len(cards) > 5:
+            st.caption(f"...ほか {len(cards) - 5}枚")
+
+
+def render_dual_pile_zone(
+    title,
+    *,
+    player_cards,
+    npc_cards,
+    icon="🃏",
+    player_label="あなた",
+    npc_label="NPC",
+):
+    with st.container(border=True):
+        st.markdown(f"**{icon} {title}**")
+        left_col, right_col = st.columns(2)
+
+        with left_col:
+            st.caption(f"{player_label}: {len(player_cards)}枚")
+            if player_cards:
+                st.write(f"- {render_card_info(player_cards[-1])}")
+            else:
+                st.caption("（なし）")
+
+        with right_col:
+            st.caption(f"{npc_label}: {len(npc_cards)}枚")
+            if npc_cards:
+                st.write(f"- {render_card_info(npc_cards[-1])}")
+            else:
+                st.caption("（なし）")
+
+
 def render_selectable_card(card, *, is_selected, key):
     description = card.effect.description if card.effect else "（効果なし）"
     prefix = "選択中\n\n" if is_selected else ""
@@ -553,76 +596,109 @@ def main():
             render_known_npc_hand(game_state)
 
             st.markdown("---")
-            st.markdown("#### ── 場 ──")
+            st.markdown("#### ── 公式プレイマット風レイアウト ──")
+            mat_cols = st.columns([2.4, 2.8, 4.2, 2.4])
 
-            battle_cols = st.columns([5, 2, 5])
-            with battle_cols[0]:
-                st.markdown("**NPC**")
-                if game_state.phase == Phase.SELECT:
-                    st.info("[???] (セット済み)")
-                else:
-                    res = game_state.current_battle
-                    base_pt = res.npc_card.base_point
-                    final_pt = base_pt
-                    if res.janken_result == JankenResult.DRAW:
-                        if res.npc_point is not None:
-                            final_pt = res.npc_point
-                        else:
-                            final_pt = calculate_effective_point(
-                                res.npc_card, game_state.npc
-                            )
+            with mat_cols[0]:
+                render_dual_pile_zone(
+                    "勝ち札",
+                    icon="🏆",
+                    player_cards=game_state.player.won_cards,
+                    npc_cards=game_state.npc.won_cards,
+                )
 
-                    pt_str = (
-                        f"{base_pt} ➔ {final_pt}"
-                        if final_pt != base_pt
-                        else f"{base_pt}"
-                    )
+            with mat_cols[1]:
+                render_dual_pile_zone(
+                    "あいこストック",
+                    icon="🤝",
+                    player_cards=game_state.player.draw_stock,
+                    npc_cards=game_state.npc.draw_stock,
+                )
 
-                    render_battle_card(
-                        res.npc_card,
-                        pt_str,
-                        is_highlighted=res.janken_result == JankenResult.LOSE,
-                    )
-
-            with battle_cols[1]:
-                st.markdown("&nbsp;")
-                if game_state.phase != Phase.SELECT and game_state.current_battle:
-                    render_janken_result()
-
-            with battle_cols[2]:
-                st.markdown("**あなた**")
-                if game_state.phase == Phase.SELECT:
-                    selected_card = find_card_by_id(
-                        game_state.player.hand,
-                        st.session_state.get("selected_card_id"),
-                    )
-                    if selected_card:
-                        render_card_detail(selected_card)
+            with mat_cols[2]:
+                st.markdown("**バトル場**")
+                battle_cols = st.columns([5, 2, 5])
+                with battle_cols[0]:
+                    st.markdown("**NPC**")
+                    if game_state.phase == Phase.SELECT:
+                        st.info("[???] (セット済み)")
                     else:
-                        st.warning("[未選択]")
-                else:
-                    res = game_state.current_battle
-                    base_pt = res.player_card.base_point
-                    final_pt = base_pt
-                    if res.janken_result == JankenResult.DRAW:
-                        if res.player_point is not None:
-                            final_pt = res.player_point
+                        res = game_state.current_battle
+                        base_pt = res.npc_card.base_point
+                        final_pt = base_pt
+                        if res.janken_result == JankenResult.DRAW:
+                            if res.npc_point is not None:
+                                final_pt = res.npc_point
+                            else:
+                                final_pt = calculate_effective_point(
+                                    res.npc_card, game_state.npc
+                                )
+
+                        pt_str = (
+                            f"{base_pt} ➔ {final_pt}"
+                            if final_pt != base_pt
+                            else f"{base_pt}"
+                        )
+
+                        render_battle_card(
+                            res.npc_card,
+                            pt_str,
+                            is_highlighted=res.janken_result == JankenResult.LOSE,
+                        )
+
+                with battle_cols[1]:
+                    st.markdown("&nbsp;")
+                    if game_state.phase != Phase.SELECT and game_state.current_battle:
+                        render_janken_result()
+
+                with battle_cols[2]:
+                    st.markdown("**あなた**")
+                    if game_state.phase == Phase.SELECT:
+                        selected_card = find_card_by_id(
+                            game_state.player.hand,
+                            st.session_state.get("selected_card_id"),
+                        )
+                        if selected_card:
+                            render_card_detail(selected_card)
                         else:
-                            final_pt = calculate_effective_point(
-                                res.player_card, game_state.player
-                            )
+                            st.warning("[未選択]")
+                    else:
+                        res = game_state.current_battle
+                        base_pt = res.player_card.base_point
+                        final_pt = base_pt
+                        if res.janken_result == JankenResult.DRAW:
+                            if res.player_point is not None:
+                                final_pt = res.player_point
+                            else:
+                                final_pt = calculate_effective_point(
+                                    res.player_card, game_state.player
+                                )
 
-                    pt_str = (
-                        f"{base_pt} ➔ {final_pt}"
-                        if final_pt != base_pt
-                        else f"{base_pt}"
-                    )
+                        pt_str = (
+                            f"{base_pt} ➔ {final_pt}"
+                            if final_pt != base_pt
+                            else f"{base_pt}"
+                        )
 
-                    render_battle_card(
-                        res.player_card,
-                        pt_str,
-                        is_highlighted=res.janken_result == JankenResult.WIN,
-                    )
+                        render_battle_card(
+                            res.player_card,
+                            pt_str,
+                            is_highlighted=res.janken_result == JankenResult.WIN,
+                        )
+
+            with mat_cols[3]:
+                render_dual_pile_zone(
+                    "山札",
+                    icon="🗂️",
+                    player_cards=game_state.player.deck,
+                    npc_cards=game_state.npc.deck,
+                )
+                render_dual_pile_zone(
+                    "捨札",
+                    icon="🗑️",
+                    player_cards=game_state.player.discard,
+                    npc_cards=game_state.npc.discard,
+                )
 
             if game_state.phase == Phase.REVEAL:
                 res = game_state.current_battle
