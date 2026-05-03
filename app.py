@@ -131,6 +131,11 @@ def submit_effect_choice(game_state, choice):
     before_logs = game_state.battle_log
     state = resume_round_effect_stepwise(game_state, choice)
     state = resolve_npc_pending_effects_stepwise(state, st.session_state.npc_strategy)
+    if (
+        game_state.pending_effect_context
+        and game_state.pending_effect_context.effect == "reorder"
+    ):
+        clear_reorder_widget_state()
     queue_effect_toasts(before_logs, state.battle_log)
     st.session_state.game_state = state
     st.rerun()
@@ -168,6 +173,12 @@ def show_pending_toasts():
         st.toast(message, icon="✨")
     if pending_toasts:
         st.session_state.pending_toasts = []
+
+
+def clear_reorder_widget_state():
+    for key in list(st.session_state.keys()):
+        if key.startswith("reorder_deck_cards_"):
+            del st.session_state[key]
 
 
 def side_label(side):
@@ -448,6 +459,7 @@ def main():
             if st.button(
                 "シャドウバウト・エンゲージ", type="primary", use_container_width=True
             ):
+                clear_reorder_widget_state()
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
@@ -645,6 +657,7 @@ def main():
                 st.warning("🤝 引き分けです！")
 
             if st.button("もう一度遊ぶ", use_container_width=True):
+                clear_reorder_widget_state()
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
