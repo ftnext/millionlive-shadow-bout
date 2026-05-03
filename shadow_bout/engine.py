@@ -725,11 +725,14 @@ def _choose_npc_pending_effect(
         return ",".join(choices) if choices else None
 
     if ctx.effect == "tutor_play":
-        if not npc.deck:
+        if not npc.deck and not source_card:
             return "skip"
         if source_card and not npc_strategy.should_activate(source_card, state):
             return "skip"
-        return npc_strategy.select_target(npc.deck, state).id
+        candidates = list(npc.deck)
+        if source_card and all(card.id != source_card.id for card in candidates):
+            candidates.append(source_card)
+        return npc_strategy.select_target(candidates, state).id
 
     return None
 

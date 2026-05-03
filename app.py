@@ -467,7 +467,12 @@ def render_pending_effect_form(game_state):
         return
 
     if ctx.effect == "reorder":
-        options, labels = card_id_options(player.deck)
+        source_card = ctx.payload.get("source_card") if ctx.payload else None
+        candidate_deck = list(player.deck)
+        if source_card and all(card.id != source_card.id for card in candidate_deck):
+            candidate_deck.append(source_card)
+
+        options, labels = card_id_options(candidate_deck)
         if len(options) <= 1:
             st.info("並び替える山札がありません。")
             if st.button("次へ", type="primary", use_container_width=True):
@@ -510,7 +515,12 @@ def render_pending_effect_form(game_state):
                 submit_effect_choice(game_state, "skip")
             return
 
-        options, labels = card_id_options(player.deck)
+        source_card = ctx.payload.get("source_card") if ctx.payload else None
+        candidate_deck = list(player.deck)
+        if source_card and all(card.id != source_card.id for card in candidate_deck):
+            candidate_deck.append(source_card)
+
+        options, labels = card_id_options(candidate_deck)
         if not options:
             st.info("山札がないため発動できません。")
             if st.button("次へ", type="primary", use_container_width=True):

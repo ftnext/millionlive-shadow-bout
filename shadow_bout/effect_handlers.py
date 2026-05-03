@@ -405,7 +405,11 @@ def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> Game
             state, "-> 麗花の効果: 場のカードがないため発動できない"
         )
 
-    target = _find_card(p_state.deck, choice)
+    candidate_deck = list(p_state.deck)
+    if all(card.id != source_card.id for card in candidate_deck):
+        candidate_deck.append(source_card)
+
+    target = _find_card(candidate_deck, choice)
     if target is None:
         return _finish_interactive_effect(
             state, "-> 麗花の効果: 山札から選べなかったため発動しない"
@@ -426,9 +430,7 @@ def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> Game
     }:
         carry_hand = carry_hand + [current_battle_card]
 
-    new_deck = [
-        card for card in p_state.deck if card.id not in {target.id, source_card.id}
-    ] + [source_card]
+    new_deck = [card for card in candidate_deck if card.id != target.id]
     random.shuffle(new_deck)
     state = update_player(
         state,
