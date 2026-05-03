@@ -484,6 +484,39 @@ def effect_set_point(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("conditional_buff")
+def effect_conditional_buff(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    own_won_total = sum(won.base_point for won in p_state.won_cards)
+    opp_won_total = sum(won.base_point for won in opp_state.won_cards)
+    bonus = int(card.effect.value or 0)
+
+    if opp_won_total > own_won_total:
+        state = update_player(
+            state,
+            side,
+            point_modifier=p_state.point_modifier + bonus,
+        )
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 相手の勝ち札合計({opp_won_total}) > 自分({own_won_total})のためポイント+{bonus}"
+            ],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [
+            f"{card.name}の効果発動: 相手の勝ち札合計({opp_won_total}) <= 自分({own_won_total})のため不発"
+        ],
+    )
+
+
 @register("conditional_debuff_next")
 def effect_conditional_debuff_next(
     state: GameState, side: Side, card: Card

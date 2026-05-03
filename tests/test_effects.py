@@ -1028,3 +1028,53 @@ def test_ban_clears_forced_card_id_when_target_is_forced_card():
 
     assert state.npc.banned_card_ids == frozenset({forced.id})
     assert state.npc.forced_card_id is None
+
+
+def test_conditional_buff_applies_when_opponent_won_total_is_higher():
+    noriko = Card(
+        "card_43",
+        "のり子",
+        "のりこ",
+        Janken.PAPER,
+        14,
+        Effect(EffectType.CONDITIONAL_BUFF, "conditional buff", 7),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 14, None)
+    own_won = Card("w1", "own", "おうん", Janken.ROCK, 10)
+    opp_won = Card("w2", "opp", "おっぷ", Janken.ROCK, 16)
+    state = GameState(
+        player=PlayerState(hand=[noriko], won_cards=[own_won]),
+        npc=PlayerState(hand=[other], won_cards=[opp_won]),
+    )
+
+    state = resolve_round(state, noriko, other)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 21
+    assert state.current_battle.npc_point == 14
+    assert any("ポイント+7" in log for log in state.battle_log)
+
+
+def test_conditional_buff_does_not_apply_when_opponent_won_total_is_not_higher():
+    noriko = Card(
+        "card_43",
+        "のり子",
+        "のりこ",
+        Janken.PAPER,
+        14,
+        Effect(EffectType.CONDITIONAL_BUFF, "conditional buff", 7),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 14, None)
+    own_won = Card("w1", "own", "おうん", Janken.ROCK, 16)
+    opp_won = Card("w2", "opp", "おっぷ", Janken.ROCK, 10)
+    state = GameState(
+        player=PlayerState(hand=[noriko], won_cards=[own_won]),
+        npc=PlayerState(hand=[other], won_cards=[opp_won]),
+    )
+
+    state = resolve_round(state, noriko, other)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 14
+    assert state.current_battle.npc_point == 14
+    assert any("不発" in log for log in state.battle_log)
