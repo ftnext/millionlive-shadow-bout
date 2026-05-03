@@ -742,6 +742,57 @@ def test_conditional_debuff_next_does_not_apply_to_wildcard():
     assert calculate_effective_point(wildcard, next_state.player) == wildcard.base_point
 
 
+def test_debuff_yukiho_halves_opponent_point_floor_for_even_and_odd():
+    yukiho = Card(
+        "card_04",
+        "雪歩",
+        "ゆきほ",
+        Janken.PAPER,
+        11,
+        Effect(EffectType.DEBUFF, "halve opponent point", 0.5),
+    )
+    odd_point_card = Card("p_odd", "p_odd", "ぴーodd", Janken.PAPER, 11, None)
+    even_point_card = Card("p_even", "p_even", "ぴーeven", Janken.PAPER, 12, None)
+    n_other = Card("n2", "n2", "えぬ2", Janken.PAPER, 1, None)
+
+    odd_state = GameState(
+        player=PlayerState(hand=[odd_point_card]),
+        npc=PlayerState(hand=[yukiho, n_other]),
+    )
+    odd_state = resolve_round(odd_state, odd_point_card, yukiho)
+    assert odd_state.current_battle.player_point == 5
+
+    even_state = GameState(
+        player=PlayerState(hand=[even_point_card]),
+        npc=PlayerState(hand=[yukiho, n_other]),
+    )
+    even_state = resolve_round(even_state, even_point_card, yukiho)
+    assert even_state.current_battle.player_point == 6
+
+
+def test_debuff_kotoha_reduces_by_opponent_hand_count():
+    kotoha = Card(
+        "card_17",
+        "琴葉",
+        "ことは",
+        Janken.SCISSORS,
+        14,
+        Effect(EffectType.DEBUFF, "opponent hand count x -1", -1),
+    )
+    p_card = Card("p1", "p1", "ぴー1", Janken.SCISSORS, 15, None)
+    p_extra_1 = Card("p2", "p2", "ぴー2", Janken.ROCK, 1, None)
+    p_extra_2 = Card("p3", "p3", "ぴー3", Janken.PAPER, 1, None)
+    n_other = Card("n2", "n2", "えぬ2", Janken.SCISSORS, 1, None)
+    state = GameState(
+        player=PlayerState(hand=[p_card, p_extra_1, p_extra_2]),
+        npc=PlayerState(hand=[kotoha, n_other]),
+    )
+
+    state = resolve_round(state, p_card, kotoha)
+
+    assert state.current_battle.player_point == 13
+
+
 def test_debuff_persistent_applies_current_and_next_round_only():
     hinata = Card(
         "c35",
