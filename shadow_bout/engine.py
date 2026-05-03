@@ -632,7 +632,13 @@ def _choose_npc_pending_effect(
             return ",".join(
                 _select_npc_card_ids(npc.hand, return_count, state, npc_strategy)
             )
-        return npc_strategy.choose_effect(["buff", "draw"], state)
+        if ctx.card_id in ("card_26", "c26"):
+            return npc_strategy.choose_effect(["gain_points", "draw_cards"], state)
+        if ctx.card_id in ("card_45", "c45"):
+            if source_card and npc_strategy.should_activate(source_card, state):
+                return "activate"
+            return "skip"
+        return None
 
     if ctx.effect == "copy_hand":
         candidates = [

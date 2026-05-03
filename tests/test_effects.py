@@ -126,7 +126,7 @@ def test_resume_choose_effect_finalizes_round_with_buff():
     state = resolve_round(state, yuriko, other)
     assert state.phase == Phase.INTERACTIVE_EFFECT
 
-    state = resume_round_effect(state, choice="buff")
+    state = resume_round_effect(state, choice="gain_points")
 
     assert state.phase == Phase.REVEAL
     assert state.current_battle.player_point == 18
@@ -175,7 +175,7 @@ def test_stepwise_nested_copy_hand_choose_finalizes_points_after_last_choice():
     state = continue_round_effect_step(state)
     state = resume_round_effect_stepwise(state, choice=yuriko.id)
     state = continue_round_effect_step(state)
-    state = resume_round_effect_stepwise(state, choice="buff")
+    state = resume_round_effect_stepwise(state, choice="gain_points")
 
     assert state.phase == Phase.REVEAL
     assert state.current_battle.player_point == 20
@@ -204,7 +204,7 @@ def test_resume_choose_effect_draw_lets_player_select_returned_cards():
     )
 
     state = resolve_round(state, yuriko, other)
-    state = resume_round_effect(state, choice="draw")
+    state = resume_round_effect(state, choice="draw_cards")
 
     assert state.phase == Phase.INTERACTIVE_EFFECT
     assert state.pending_effect_context.side == Side.PLAYER
