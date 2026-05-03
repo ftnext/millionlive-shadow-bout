@@ -7,6 +7,7 @@ from shadow_bout.engine import (
     init_game,
     judge_janken,
     proceed_to_next,
+    select_card,
 )
 from shadow_bout.models import (
     BattleResult,
@@ -30,6 +31,85 @@ def mock_cards():
         Card("c3", "P10", "kana", Janken.PAPER, 10),
         Card("c4", "R20", "kana", Janken.ROCK, 20),
     ]
+
+
+class FirstCardStrategy:
+    def select_card(self, hand, game_state):
+        return hand[0]
+
+
+def test_select_card_rejects_banned_player_card(mock_cards):
+    p1, p2, n1, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1, p2], banned_card_ids=frozenset({p1.id})),
+        npc=PlayerState(hand=[n1]),
+        phase=Phase.SELECT,
+    )
+
+    with pytest.raises(ValueError, match="cannot play banned card"):
+        select_card(state, p1, FirstCardStrategy())
+
+
+def test_select_card_rejects_non_forced_player_card(mock_cards):
+    p1, p2, n1, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1, p2], forced_card_id=p2.id),
+        npc=PlayerState(hand=[n1]),
+        phase=Phase.SELECT,
+    )
+
+    with pytest.raises(ValueError, match="must play forced card"):
+        select_card(state, p1, FirstCardStrategy())
+
+
+def test_select_card_rejects_player_card_not_in_hand(mock_cards):
+    p1, p2, n1, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1]),
+        npc=PlayerState(hand=[n1]),
+        phase=Phase.SELECT,
+    )
+
+    with pytest.raises(ValueError, match="selected card is not in hand"):
+        select_card(state, p2, FirstCardStrategy())
+
+
+def test_select_card_applies_npc_forced_play(mock_cards):
+    p1, n1, n2, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1]),
+        npc=PlayerState(hand=[n1, n2], forced_card_id=n2.id),
+        phase=Phase.SELECT,
+    )
+
+    next_state = select_card(state, p1, FirstCardStrategy())
+
+    assert all(card.id != n2.id for card in next_state.npc.hand)
+
+
+def test_select_card_rejects_when_npc_has_no_playable_card(mock_cards):
+    p1, n1, _, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1]),
+        npc=PlayerState(hand=[n1], banned_card_ids=frozenset({n1.id})),
+        phase=Phase.SELECT,
+    )
+
+    with pytest.raises(ValueError, match="npc has no playable cards"):
+        select_card(state, p1, FirstCardStrategy())
+
+
+def test_select_card_without_constraints_keeps_current_behavior(mock_cards):
+    p1, n1, _, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1]),
+        npc=PlayerState(hand=[n1]),
+        phase=Phase.SELECT,
+    )
+
+    next_state = select_card(state, p1, FirstCardStrategy())
+
+    assert next_state.phase == Phase.REVEAL
 
 
 def test_judge_janken(mock_cards):
