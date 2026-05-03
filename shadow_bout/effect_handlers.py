@@ -265,7 +265,7 @@ def _resume_choose_multiple(
     state: GameState, side: Side, choice: str | None
 ) -> GameState:
     p_state = get_player_state(state, side)
-    if choice is None:
+    if not choice:
         return replace(
             state,
             battle_log=state.battle_log

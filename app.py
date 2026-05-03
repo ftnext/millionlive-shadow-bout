@@ -336,7 +336,15 @@ def render_pending_effect_form(game_state):
             }[value],
             key=f"choose_multiple_{game_state.round_number}_{ctx.card_id}_{ctx.side.value}",
         )
-        if st.button("この効果を決定", type="primary", use_container_width=True):
+        is_ready = len(selected) > 0
+        if not is_ready:
+            st.caption("1つ以上選んでください。")
+        if st.button(
+            "この効果を決定",
+            type="primary",
+            disabled=not is_ready,
+            use_container_width=True,
+        ):
             submit_effect_choice(game_state, ",".join(selected))
         return
 
