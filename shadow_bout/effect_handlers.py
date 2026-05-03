@@ -265,6 +265,13 @@ def _resume_choose_multiple(
     state: GameState, side: Side, choice: str | None
 ) -> GameState:
     p_state = get_player_state(state, side)
+    if choice is None:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + ["-> 海美の効果: 効果を1つ以上選択してください"],
+        )
+
     selected = set(_parse_card_ids(choice))
 
     can_discard = bool(p_state.hand)

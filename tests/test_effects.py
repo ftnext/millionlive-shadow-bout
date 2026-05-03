@@ -652,6 +652,31 @@ def test_umi_choose_multiple_no_available_option_is_safe():
     assert state.player.point_modifier == 0
 
 
+def test_umi_choose_multiple_none_choice_keeps_interactive():
+    umi = Card(
+        "card_29",
+        "海美",
+        "うみ",
+        Janken.SCISSORS,
+        14,
+        Effect(EffectType.CHOOSE_MULTIPLE, "choose_multiple", None),
+    )
+    hand_card = Card("h1", "手札", "てふだ", Janken.ROCK, 5)
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 14, None)
+    state = GameState(
+        player=PlayerState(hand=[umi, hand_card]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, umi, other)
+    state = resume_round_effect(state, choice=None)
+
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context is not None
+    assert state.pending_effect_context.effect == "choose_multiple"
+    assert state.player.point_modifier == 0
+
+
 def test_ami_restart_does_not_duplicate_played_cards():
     ami = Card(
         "c11",
