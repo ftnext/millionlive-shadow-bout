@@ -664,3 +664,46 @@ def test_force_play_is_safe_when_opponent_has_no_hand():
     state = resolve_round(state, tamaki, other)
 
     assert state.npc.forced_card_id is None
+
+
+def test_ban_adds_banned_card_id_on_opponent_side():
+    kaori = Card(
+        "card_52",
+        "歌織",
+        "かおり",
+        Janken.ROCK,
+        14,
+        Effect(EffectType.BAN, "ban", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[kaori]),
+        npc=PlayerState(hand=[other, n_extra]),
+    )
+
+    state = resolve_round(state, kaori, other)
+
+    assert state.npc.banned_card_ids == frozenset({n_extra.id})
+
+
+def test_ban_clears_forced_card_id_when_target_is_forced_card():
+    kaori = Card(
+        "card_52",
+        "歌織",
+        "かおり",
+        Janken.ROCK,
+        14,
+        Effect(EffectType.BAN, "ban", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    forced = Card("forced", "forced", "ふぉーす", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[kaori]),
+        npc=PlayerState(hand=[other, forced], forced_card_id=forced.id),
+    )
+
+    state = resolve_round(state, kaori, other)
+
+    assert state.npc.banned_card_ids == frozenset({forced.id})
+    assert state.npc.forced_card_id is None
