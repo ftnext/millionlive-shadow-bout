@@ -273,6 +273,28 @@ def test_resume_salvage_effect_recovers_from_discard_with_penalty():
     assert state.current_battle.player_point == 10
 
 
+def test_resume_salvage_effect_uses_card_defined_penalty_value():
+    fuka = Card(
+        "card_41",
+        "風花",
+        "ふうか",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.SALVAGE, "salvage", -5),
+    )
+    recovered = Card("cx1", "recover", "りかば", Janken.PAPER, 5, None)
+    other = Card("cx2", "other", "おざー", Janken.SCISSORS, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[fuka], discard=[recovered]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, fuka, other)
+    state = resume_round_effect(state, choice="cx1")
+
+    assert state.current_battle.player_point == 8
+
+
 def test_resume_salvage_effect_skip_keeps_state_unchanged():
     fuka = Card(
         "card_41",

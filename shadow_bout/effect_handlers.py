@@ -202,7 +202,19 @@ def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameSta
     if target is None:
         return _finish_interactive_effect(state, "-> 風花の効果: 回収しない")
 
-    penalty = -3
+    ctx = state.pending_effect_context
+    source_card = None
+    if ctx is not None and state.current_battle is not None:
+        source_card = (
+            state.current_battle.player_card
+            if side == Side.PLAYER
+            else state.current_battle.npc_card
+        )
+        if source_card.id != ctx.card_id:
+            source_card = None
+    penalty = int(
+        source_card.effect.value if source_card and source_card.effect else -3
+    )
     new_discard = [card for card in p_state.discard if card.id != target.id]
     state = update_player(
         state,
