@@ -386,6 +386,49 @@ def _resume_choose_multiple(
     return _finish_interactive_effect(state, f"-> 海美の効果: {'、'.join(logs)}")
 
 
+def _resume_debuff_counterable(
+    state: GameState, side: Side, choice: str | None
+) -> GameState:
+    ctx = state.pending_effect_context
+    source_side = get_opponent_side(side)
+    source_card = _find_card_by_id(state, source_side, ctx.card_id if ctx else None)
+    source_name = source_card.name if source_card else "志保"
+    debuff = int(
+        source_card.effect.value
+        if source_card and source_card.effect
+        else (ctx.payload.get("debuff", -5) if ctx else -5)
+    )
+
+    p_state = get_player_state(state, side)
+    discard_target = None
+    if choice == "counter":
+        discard_target = p_state.hand[0] if p_state.hand else None
+    elif choice not in (None, "", "skip", "no_counter"):
+        discard_target = _find_card(p_state.hand, choice)
+
+    if discard_target is None:
+        state = update_player(
+            state,
+            side,
+            point_modifier=p_state.point_modifier + debuff,
+        )
+        return _finish_interactive_effect(
+            state,
+            f"-> {source_name}の効果: 相手が無効化せず、相手のポイント{debuff:+d}",
+        )
+
+    state = update_player(
+        state,
+        side,
+        hand=[card for card in p_state.hand if card.id != discard_target.id],
+        discard=p_state.discard + [discard_target],
+    )
+    return _finish_interactive_effect(
+        state,
+        f"-> {source_name}の効果: 相手は{discard_target.name}を捨札にして無効化",
+    )
+
+
 def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameState:
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
@@ -473,6 +516,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_reorder(state, side, choice)
     if ctx.effect == "choose_multiple":
         return _resume_choose_multiple(state, side, choice)
+    if ctx.effect == "debuff_counterable":
+        return _resume_debuff_counterable(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -796,6 +841,42 @@ def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
         )
 
     return state
+
+
+@register("debuff_counterable")
+def effect_debuff_counterable(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
+    debuff = int(card.effect.value or 0)
+    opp_state = get_player_state(state, opp_side)
+    if not opp_state.hand:
+        state = update_player(
+            state,
+            opp_side,
+            point_modifier=opp_state.point_modifier + debuff,
+        )
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の手札がないため相手のポイント{debuff:+d}"],
+        )
+
+    ctx = PendingEffectContext(
+        side=opp_side,
+        card_id=card.id,
+        effect="debuff_counterable",
+        payload={"debuff": debuff},
+    )
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の無効化選択待機中..."],
+    )
 
 
 @register("set_point")
