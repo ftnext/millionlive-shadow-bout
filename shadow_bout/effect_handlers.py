@@ -426,6 +426,30 @@ def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
     return state
 
 
+@register("set_point")
+def effect_set_point(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    set_value = int(card.effect.value or 0)
+    current_battle = state.current_battle
+    opp_card = (
+        current_battle.npc_card if opp_side == Side.NPC else current_battle.player_card
+    )
+    conditional = (
+        opp_state.conditional_point_modifier_non_wildcard
+        if opp_card.janken != Janken.WILDCARD
+        else 0
+    )
+    new_modifier = set_value - opp_card.base_point - conditional
+    state = update_player(state, opp_side, point_modifier=new_modifier)
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手のポイントを{set_value}にした"],
+    )
+
+
 @register("conditional_debuff_next")
 def effect_conditional_debuff_next(
     state: GameState, side: Side, card: Card

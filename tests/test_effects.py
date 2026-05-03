@@ -793,6 +793,58 @@ def test_debuff_kotoha_reduces_by_opponent_hand_count():
     assert state.current_battle.player_point == 13
 
 
+def test_set_point_azusa_sets_opponent_point_to_zero():
+    azusa = Card(
+        "card_10",
+        "あずさ",
+        "あずさ",
+        Janken.SCISSORS,
+        10,
+        Effect(EffectType.SET_POINT, "set point", 0),
+    )
+    other = Card("op", "other", "おざー", Janken.SCISSORS, 18, None)
+    state = GameState(
+        player=PlayerState(hand=[azusa]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, azusa, other)
+
+    assert state.current_battle.player_point == 10
+    assert state.current_battle.npc_point == 0
+    assert state.current_battle.outcome == RoundOutcome.WIN
+
+
+def test_set_point_works_consistently_with_existing_point_modifier_order():
+    azusa = Card(
+        "card_10",
+        "あずさ",
+        "あずさ",
+        Janken.SCISSORS,
+        10,
+        Effect(EffectType.SET_POINT, "set point", 0),
+    )
+    takane = Card(
+        "c8",
+        "貴音",
+        "たかね",
+        Janken.SCISSORS,
+        14,
+        Effect(EffectType.BUFF, "+1", 1),
+    )
+    state = GameState(
+        player=PlayerState(hand=[azusa]),
+        npc=PlayerState(hand=[takane]),
+    )
+
+    state = resolve_round(state, azusa, takane)
+
+    assert state.current_battle.player_point == 10
+    # あずさ(10)→貴音(14)の順で効果解決されるため、0固定の後に+1される
+    assert state.current_battle.npc_point == 1
+    assert state.current_battle.outcome == RoundOutcome.WIN
+
+
 def test_debuff_persistent_applies_current_and_next_round_only():
     hinata = Card(
         "c35",
