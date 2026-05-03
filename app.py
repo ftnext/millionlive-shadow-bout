@@ -314,6 +314,40 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "choose_multiple":
+        options: list[str] = []
+        if player.hand:
+            options.append("discard_buff")
+        if player.deck:
+            options.append("draw_debuff")
+
+        if not options:
+            st.info("発動可能な効果がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "")
+            return
+
+        selected = st.multiselect(
+            "海美の効果（1つまたは両方を選択）",
+            options,
+            format_func=lambda value: {
+                "discard_buff": "手札1枚を捨て札に置いてポイント+5",
+                "draw_debuff": "山札から1枚引いてポイント-2",
+            }[value],
+            key=f"choose_multiple_{game_state.round_number}_{ctx.card_id}_{ctx.side.value}",
+        )
+        is_ready = len(selected) > 0
+        if not is_ready:
+            st.caption("1つ以上選んでください。")
+        if st.button(
+            "この効果を決定",
+            type="primary",
+            disabled=not is_ready,
+            use_container_width=True,
+        ):
+            submit_effect_choice(game_state, ",".join(selected))
+        return
+
     if ctx.effect == "search_and_swap":
         mode = st.radio(
             "千鶴の効果",
