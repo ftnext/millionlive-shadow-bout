@@ -228,7 +228,8 @@ def render_pending_effect_form(game_state):
     player = game_state.player
 
     if ctx.effect == "choose":
-        if ctx.step == 1:
+        variant = ctx.payload.get("choose_variant")
+        if variant == "yuriko_return_cards" and ctx.step == 1:
             return_count = int(ctx.payload.get("return_count", 0))
             options, labels = card_id_options(player.hand)
             selected = st.multiselect(
@@ -250,17 +251,37 @@ def render_pending_effect_form(game_state):
                 submit_effect_choice(game_state, ",".join(selected))
             return
 
-        choice = st.radio(
-            "百合子の効果",
-            ["buff", "draw"],
-            format_func=lambda value: {
-                "buff": "自分のポイント+3",
-                "draw": "山札から2枚引き、手札2枚を山札の下へ戻す",
-            }[value],
-            horizontal=True,
-        )
-        if st.button("この効果を発動", type="primary", use_container_width=True):
-            submit_effect_choice(game_state, choice)
+        if variant == "yuriko_choose":
+            choice = st.radio(
+                "百合子の効果",
+                ["gain_points", "draw_cards"],
+                format_func=lambda value: {
+                    "gain_points": "自分のポイント+3",
+                    "draw_cards": "山札から2枚引き、手札2枚を山札の下へ戻す",
+                }[value],
+                horizontal=True,
+            )
+            if st.button("この効果を発動", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, choice)
+            return
+
+        if variant == "karen_choose":
+            choice = st.radio(
+                "可憐の効果",
+                ["activate", "skip"],
+                format_func=lambda value: {
+                    "activate": "発動する（相手の公開を2ラウンド強制）",
+                    "skip": "発動しない",
+                }[value],
+                horizontal=True,
+            )
+            if st.button("この効果を決定", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, choice)
+            return
+
+        st.info("このカードの選択効果には未対応です。")
+        if st.button("次へ", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, None)
         return
 
     if ctx.effect == "copy_hand":

@@ -289,6 +289,24 @@ def test_resolve_round_consumes_must_reveal_played_card_and_records_reveal(mock_
     assert next_state.revealed_this_round_side == Side.NPC
 
 
+def test_resolve_round_consumes_must_reveal_played_card_rounds(mock_cards):
+    p1, n1, p2, n2 = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1, p2]),
+        npc=PlayerState(hand=[n1, n2], must_reveal_played_card_rounds=2),
+        phase=Phase.SELECT,
+    )
+
+    round_1 = resolve_round(state, p1, n1)
+    assert round_1.revealed_this_round == [n1]
+    assert round_1.npc.must_reveal_played_card_rounds == 1
+
+    round_2_start = proceed_to_next(round_1)
+    round_2 = resolve_round(round_2_start, p2, n2)
+    assert round_2.revealed_this_round == [n2]
+    assert round_2.npc.must_reveal_played_card_rounds == 0
+
+
 def test_proceed_to_next_resolves_remaining_forfeit_rounds(mock_cards):
     forfeited_1, npc_card, forfeited_2, forfeited_3 = mock_cards
     state = GameState(

@@ -8,6 +8,7 @@ from shadow_bout.effect_utils import (
     get_opponent_side,
     get_player_state,
     set_must_reveal_played_card,
+    set_must_reveal_played_card_rounds,
     update_player,
 )
 from shadow_bout.models import (
@@ -58,58 +59,80 @@ def _parse_card_ids(choice: str | None) -> list[str]:
 
 def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameState:
     ctx = state.pending_effect_context
+    if ctx is None:
+        return state
     p_state = get_player_state(state, side)
-    if ctx and ctx.step == 1:
-        return_count = int(ctx.payload.get("return_count", 0))
-        selected_ids = _parse_card_ids(choice)
-        returned = [
-            card
-            for card_id in selected_ids
-            if (card := _find_card(p_state.hand, card_id))
-        ][:return_count]
+    variant = ctx.payload.get("choose_variant")
+    if variant in ("yuriko_choose", "yuriko_return_cards"):
+        if ctx.step == 1:
+            return_count = int(ctx.payload.get("return_count", 0))
+            selected_ids = _parse_card_ids(choice)
+            returned = [
+                card
+                for card_id in selected_ids
+                if (card := _find_card(p_state.hand, card_id))
+            ][:return_count]
 
-        if len(returned) < return_count:
+            if len(returned) < return_count:
+                returned_ids = {card.id for card in returned}
+                returned.extend(
+                    card for card in p_state.hand if card.id not in returned_ids
+                )
+                returned = returned[:return_count]
+
             returned_ids = {card.id for card in returned}
-            returned.extend(
-                card for card in p_state.hand if card.id not in returned_ids
-            )
-            returned = returned[:return_count]
-
-        returned_ids = {card.id for card in returned}
-        new_hand = [card for card in p_state.hand if card.id not in returned_ids]
-        new_deck = p_state.deck + returned
-        state = update_player(state, side, hand=new_hand, deck=new_deck)
-        return _finish_interactive_effect(
-            state, "-> 百合子の効果: 山札から2枚引き、2枚を山札の下へ戻した"
-        )
-
-    if choice == "draw":
-        drawn = p_state.deck[:2]
-        new_deck = p_state.deck[2:]
-        new_hand = p_state.hand + drawn
-        state = update_player(state, side, hand=new_hand, deck=new_deck)
-        return_count = min(2, len(new_hand))
-        if return_count == 0:
+            new_hand = [card for card in p_state.hand if card.id not in returned_ids]
+            new_deck = p_state.deck + returned
+            state = update_player(state, side, hand=new_hand, deck=new_deck)
             return _finish_interactive_effect(
                 state,
-                "-> 百合子の効果: 山札からカードを引けず、戻す手札もなかった",
+                "-> 百合子の効果: 山札から2枚引き、2枚を山札の下へ戻した",
             )
 
-        next_ctx = replace(
-            ctx,
-            step=1,
-            payload={"return_count": return_count, "drawn_ids": [c.id for c in drawn]},
-        )
-        return replace(
-            state,
-            phase=Phase.INTERACTIVE_EFFECT,
-            pending_effect_context=next_ctx,
-            battle_log=state.battle_log
-            + [f"-> 百合子の効果: 山札から{len(drawn)}枚引いた。戻す手札を選択中..."],
+        if choice == "draw_cards":
+            drawn = p_state.deck[:2]
+            new_deck = p_state.deck[2:]
+            new_hand = p_state.hand + drawn
+            state = update_player(state, side, hand=new_hand, deck=new_deck)
+            return_count = min(2, len(new_hand))
+            if return_count == 0:
+                return _finish_interactive_effect(
+                    state,
+                    "-> 百合子の効果: 山札からカードを引けず、戻す手札もなかった",
+                )
+
+            next_ctx = replace(
+                ctx,
+                step=1,
+                payload={
+                    "choose_variant": "yuriko_return_cards",
+                    "return_count": return_count,
+                    "drawn_ids": [c.id for c in drawn],
+                },
+            )
+            return replace(
+                state,
+                phase=Phase.INTERACTIVE_EFFECT,
+                pending_effect_context=next_ctx,
+                battle_log=state.battle_log
+                + [
+                    f"-> 百合子の効果: 山札から{len(drawn)}枚引いた。戻す手札を選択中..."
+                ],
+            )
+
+        state = update_player(state, side, point_modifier=p_state.point_modifier + 3)
+        return _finish_interactive_effect(state, "-> 百合子の効果: ポイント+3")
+
+    if variant == "karen_choose":
+        if choice != "activate":
+            return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
+        opp_side = get_opponent_side(side)
+        state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
+        return _finish_interactive_effect(
+            state, "-> 可憐の効果: 相手は2ラウンドの間、出し札を公開"
         )
 
-    state = update_player(state, side, point_modifier=p_state.point_modifier + 3)
-    return _finish_interactive_effect(state, "-> 百合子の効果: ポイント+3")
+    return _finish_interactive_effect(state, "-> 選択効果: 未対応カード")
 
 
 def _resume_copy_hand(state: GameState, side: Side, choice: str | None) -> GameState:
@@ -442,7 +465,18 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
 
 @register("choose")
 def effect_choose(state: GameState, side: Side, card: Card) -> GameState:
-    ctx = PendingEffectContext(side=side, card_id=card.id, effect="choose")
+    choose_variant = {
+        "card_26": "yuriko_choose",
+        "c26": "yuriko_choose",
+        "card_45": "karen_choose",
+        "c45": "karen_choose",
+    }.get(card.id, "generic_choose")
+    ctx = PendingEffectContext(
+        side=side,
+        card_id=card.id,
+        effect="choose",
+        payload={"choose_variant": choose_variant},
+    )
     state = replace(
         state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
     )
