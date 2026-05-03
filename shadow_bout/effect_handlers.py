@@ -832,8 +832,7 @@ def effect_conditional_negate_buff(
     state: GameState, side: Side, card: Card
 ) -> GameState:
     opp_side = get_opponent_side(side)
-    if _opponent_is_immune(state, side):
-        return _immune_blocked_state(state, card)
+    opponent_is_immune = _opponent_is_immune(state, side)
 
     current_battle = state.current_battle
     if current_battle is None:
@@ -865,8 +864,18 @@ def effect_conditional_negate_buff(
         )
 
     bonus = int(card.effect.value or 0)
-    state = update_player(state, opp_side, effect_negated=True)
+    if not opponent_is_immune:
+        state = update_player(state, opp_side, effect_negated=True)
     state = update_player(state, side, point_modifier=p_state.point_modifier + bonus)
+    if opponent_is_immune:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 相手のポイント({opponent_point})が奇数だが、相手は戦具効果を受けないため無効化できず、ポイント+{bonus}"
+            ],
+        )
+
     return replace(
         state,
         battle_log=state.battle_log

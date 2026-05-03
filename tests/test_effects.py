@@ -1864,6 +1864,35 @@ def test_conditional_negate_buff_does_not_apply_when_opponent_point_is_even():
     assert any("相手のポイント(14)が偶数のため不発" in log for log in state.battle_log)
 
 
+def test_conditional_negate_buff_keeps_own_buff_against_immune_opponent():
+    nao = Card(
+        "card_37",
+        "奈緒",
+        "なお",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_NEGATE_BUFF, "conditional negate buff", 3),
+    )
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    state = GameState(player=PlayerState(hand=[nao]), npc=PlayerState(hand=[emily]))
+
+    state = resolve_round(state, nao, emily)
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.point_modifier == 3
+    assert state.npc.effect_negated is False
+    assert state.current_battle.player_point == 15
+    assert state.current_battle.npc_point == 13
+    assert any("戦具効果を受けないため無効化できず" in log for log in state.battle_log)
+
+
 def test_immune_blocks_opponent_set_point_compared_with_non_immune_card():
     azusa = Card(
         "card_10",
