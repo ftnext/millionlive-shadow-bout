@@ -39,6 +39,11 @@ class FirstChoiceStrategy:
         return True
 
 
+class LastChoiceStrategy(FirstChoiceStrategy):
+    def select_target(self, candidates, game_state):
+        return candidates[-1]
+
+
 def test_basic_point_calculation():
     # 1. 基本ポイント計算
     c = Card("c1", "test", "test", Janken.ROCK, 15)
@@ -2162,3 +2167,40 @@ def test_resolve_npc_pending_effects_progresses_tutor_play():
     assert state.current_battle.npc_point == 30
     assert target not in state.npc.deck
     assert {card.id for card in state.npc.deck} == {"card_48", "remain"}
+
+
+def test_npc_copy_hand_tutor_play_self_candidate_uses_battle_card():
+    anna = Card(
+        "card_24",
+        "杏奈",
+        "あんな",
+        Janken.PAPER,
+        17,
+        Effect(EffectType.COPY_HAND, "copy hand", None),
+    )
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor play", None),
+    )
+    deck_card = Card("deck", "山札", "やまふだ", Janken.ROCK, 1, None)
+    other = Card("other", "相手札", "あいてふだ", Janken.PAPER, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[other]),
+        npc=PlayerState(hand=[anna, reika], deck=[deck_card]),
+    )
+
+    random.seed(0)
+    state = resolve_round(state, other, anna)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.effect == "copy_hand"
+
+    state = resolve_npc_pending_effects(state, LastChoiceStrategy())
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.npc_card == anna
+    assert state.npc.deck == [deck_card]
+    assert any("杏奈を場に出し直し" in log for log in state.battle_log)
