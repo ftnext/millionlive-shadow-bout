@@ -1657,3 +1657,34 @@ def test_immune_blocks_karen_choose_activate_effect():
 
     assert state.phase == Phase.REVEAL
     assert state.player.must_reveal_played_card_rounds == 0
+
+
+def test_immune_blocks_removal_effect():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    julia = Card(
+        "c50",
+        "ジュリア",
+        "じゅりあ",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.REMOVAL, "removal", None),
+    )
+
+    state = GameState(
+        player=PlayerState(hand=[emily]),
+        npc=PlayerState(hand=[julia]),
+    )
+
+    state = resolve_round(state, emily, julia)
+
+    assert state.phase == Phase.REVEAL
+    assert state.removal_activated is False
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.player.won_cards == [julia]

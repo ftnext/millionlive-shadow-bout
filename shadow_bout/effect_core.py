@@ -18,6 +18,7 @@ _OPPONENT_TARGETING_EFFECTS = frozenset(
         "debuff_persistent",
         "force_play",
         "negate",
+        "removal",
         "reveal",
         "reveal_all",
         "set_point",
