@@ -125,9 +125,9 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
     if variant == "karen_choose":
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
-        state = set_must_reveal_played_card(state, get_opponent_side(side), rounds=2)
+        state = set_must_reveal_played_card(state, get_opponent_side(side), True)
         return _finish_interactive_effect(
-            state, "-> 可憐の効果: 相手は2ラウンドの間、出した戦具の公開が必須"
+            state, "-> 可憐の効果: 相手の次の出し札を公開"
         )
 
     return _finish_interactive_effect(state, "-> 選択効果: 未対応カード")
