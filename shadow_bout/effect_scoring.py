@@ -63,44 +63,42 @@ def resolve_post_effect_points(state: GameState) -> GameState:
         state, current_battle=new_res, battle_log=state.battle_log + [log_msg]
     )
 
-    # card_18: この勝負に負けた場合、次の勝負で相手-3（バー以外）
-    if (
-        res.player_card.id == "card_18"
-        and winning_side == Side.NPC
-        and Side.PLAYER in state.activated_conditional_debuff_sides
-    ):
-        updated_state = replace(
-            updated_state,
-            npc=replace(
-                updated_state.npc,
-                next_round_conditional_point_modifier_non_wildcard=(
-                    updated_state.npc.next_round_conditional_point_modifier_non_wildcard
-                    + int(res.player_card.effect.value or 0)
-                ),
-            ),
-            battle_log=updated_state.battle_log
-            + [
-                f"{res.player_card.name}の効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{int(res.player_card.effect.value or 0):+d}"
-            ],
+    for side, debuff in state.pending_conditional_debuff_on_loss:
+        side_lost = (side == Side.PLAYER and winning_side == Side.NPC) or (
+            side == Side.NPC and winning_side == Side.PLAYER
         )
-    elif (
-        res.npc_card.id == "card_18"
-        and winning_side == Side.PLAYER
-        and Side.NPC in state.activated_conditional_debuff_sides
-    ):
-        updated_state = replace(
-            updated_state,
-            player=replace(
-                updated_state.player,
-                next_round_conditional_point_modifier_non_wildcard=(
-                    updated_state.player.next_round_conditional_point_modifier_non_wildcard
-                    + int(res.npc_card.effect.value or 0)
+        if not side_lost:
+            continue
+
+        if side == Side.PLAYER:
+            updated_state = replace(
+                updated_state,
+                npc=replace(
+                    updated_state.npc,
+                    next_round_conditional_point_modifier_non_wildcard=(
+                        updated_state.npc.next_round_conditional_point_modifier_non_wildcard
+                        + debuff
+                    ),
                 ),
-            ),
-            battle_log=updated_state.battle_log
-            + [
-                f"{res.npc_card.name}の効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{int(res.npc_card.effect.value or 0):+d}"
-            ],
-        )
+                battle_log=updated_state.battle_log
+                + [
+                    f"効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
+        else:
+            updated_state = replace(
+                updated_state,
+                player=replace(
+                    updated_state.player,
+                    next_round_conditional_point_modifier_non_wildcard=(
+                        updated_state.player.next_round_conditional_point_modifier_non_wildcard
+                        + debuff
+                    ),
+                ),
+                battle_log=updated_state.battle_log
+                + [
+                    f"効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
 
     return updated_state

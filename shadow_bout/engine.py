@@ -201,7 +201,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         removal_activated=False,
         revealed_this_round=None,
         revealed_this_round_side=None,
-        activated_conditional_debuff_sides=(),
+        pending_conditional_debuff_on_loss=(),
     )
 
 

@@ -1012,6 +1012,35 @@ def test_debuff_conditional_iku_applies_from_round_3():
         assert state.player.next_round_conditional_point_modifier_non_wildcard == -4
 
 
+def test_copied_card_18_effect_applies_on_loss():
+    copy_effect_card = Card(
+        "copy",
+        "copy",
+        "こぴー",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.COPY_EFFECT, "copy", None),
+    )
+    copied_elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    npc_card = Card("n1", "n1", "えぬ1", Janken.ROCK, 12, None)
+    state = GameState(
+        player=PlayerState(hand=[copy_effect_card], deck=[copied_elena]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, copy_effect_card, npc_card)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.npc.next_round_conditional_point_modifier_non_wildcard == -3
+
+
 def test_force_play_sets_forced_card_id_on_opponent_side():
     tamaki = Card(
         "c12",
