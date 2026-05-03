@@ -297,7 +297,18 @@ def _is_playable_under_constraints(player_state: PlayerState, card: Card) -> boo
     return True
 
 
+def _selectable_cards_under_constraints(player_state: PlayerState) -> list[Card]:
+    return [
+        card
+        for card in player_state.hand
+        if _is_playable_under_constraints(player_state, card)
+    ]
+
+
 def _validate_selected_card(player_state: PlayerState, card: Card, side: Side) -> None:
+    if all(card.id != hand_card.id for hand_card in player_state.hand):
+        raise ValueError(f"{side.value} selected card is not in hand: {card.id}")
+
     if not _is_playable_under_constraints(player_state, card):
         if (
             player_state.forced_card_id is not None
@@ -312,14 +323,10 @@ def _validate_selected_card(player_state: PlayerState, card: Card, side: Side) -
 def _select_npc_card_with_constraints(
     game_state: GameState, npc_strategy: NpcStrategy
 ) -> Card:
-    constrained_hand = [
-        card
-        for card in game_state.npc.hand
-        if _is_playable_under_constraints(game_state.npc, card)
-    ]
-    if constrained_hand:
-        return npc_strategy.select_card(constrained_hand, game_state)
-    return npc_strategy.select_card(game_state.npc.hand, game_state)
+    constrained_hand = _selectable_cards_under_constraints(game_state.npc)
+    if not constrained_hand:
+        raise ValueError("npc has no playable cards under current constraints")
+    return npc_strategy.select_card(constrained_hand, game_state)
 
 
 def select_card(
