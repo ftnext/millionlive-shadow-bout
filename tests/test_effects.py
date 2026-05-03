@@ -527,6 +527,50 @@ def test_takane_draw_reveals_both_remaining_hands_persistently():
     assert next_state.npc.revealed_card_ids == frozenset({n_extra.id})
 
 
+def test_steal_draw_effect_moves_top_card_from_opponent_deck_to_own_hand():
+    serika = Card(
+        "card_22",
+        "星梨花",
+        "せりか",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.STEAL_DRAW, "steal draw", 1),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    stolen = Card("n1", "n1", "えぬ1", Janken.PAPER, 1)
+    remain = Card("n2", "n2", "えぬ2", Janken.SCISSORS, 2)
+    state = GameState(
+        player=PlayerState(hand=[serika]),
+        npc=PlayerState(hand=[other], deck=[stolen, remain]),
+    )
+
+    state = resolve_round(state, serika, other)
+
+    assert state.player.hand == [stolen]
+    assert state.npc.deck == [remain]
+
+
+def test_steal_draw_effect_noops_when_opponent_deck_is_empty():
+    serika = Card(
+        "card_22",
+        "星梨花",
+        "せりか",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.STEAL_DRAW, "steal draw", 1),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[serika]),
+        npc=PlayerState(hand=[other], deck=[]),
+    )
+
+    state = resolve_round(state, serika, other)
+
+    assert state.player.hand == []
+    assert state.npc.deck == []
+
+
 def test_draw_effect_draws_two_cards_for_both_sides():
     emily = Card(
         "card_20",
