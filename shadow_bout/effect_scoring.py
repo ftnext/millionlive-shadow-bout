@@ -64,7 +64,11 @@ def resolve_post_effect_points(state: GameState) -> GameState:
     )
 
     # card_18: この勝負に負けた場合、次の勝負で相手-3（バー以外）
-    if res.player_card.id == "card_18" and winning_side == Side.NPC:
+    if (
+        res.player_card.id == "card_18"
+        and winning_side == Side.NPC
+        and Side.PLAYER in state.activated_conditional_debuff_sides
+    ):
         updated_state = replace(
             updated_state,
             npc=replace(
@@ -79,7 +83,11 @@ def resolve_post_effect_points(state: GameState) -> GameState:
                 f"{res.player_card.name}の効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{int(res.player_card.effect.value or 0):+d}"
             ],
         )
-    elif res.npc_card.id == "card_18" and winning_side == Side.PLAYER:
+    elif (
+        res.npc_card.id == "card_18"
+        and winning_side == Side.PLAYER
+        and Side.NPC in state.activated_conditional_debuff_sides
+    ):
         updated_state = replace(
             updated_state,
             player=replace(

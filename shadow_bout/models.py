@@ -166,3 +166,4 @@ class GameState:
     removal_activated: bool = False
     revealed_this_round: list[Card] | None = None
     revealed_this_round_side: Side | None = None
+    activated_conditional_debuff_sides: tuple[Side, ...] = ()

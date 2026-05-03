@@ -953,6 +953,34 @@ def test_debuff_conditional_elena_applies_only_when_lost():
     assert not_lose_state.npc.next_round_conditional_point_modifier_non_wildcard == 0
 
 
+def test_debuff_conditional_elena_does_not_apply_when_negated():
+    elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    chihaya = Card(
+        "c2",
+        "千早",
+        "ちはや",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.NEGATE, "negate", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(hand=[chihaya]),
+    )
+
+    state = resolve_round(state, elena, chihaya)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.player.next_round_conditional_point_modifier_non_wildcard == 0
+
+
 def test_debuff_conditional_iku_applies_from_round_3():
     iku = Card(
         "card_30",

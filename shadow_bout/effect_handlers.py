@@ -574,6 +574,9 @@ def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameS
             + [
                 f"{card.name}の効果発動: この勝負で敗北した場合に次ラウンド(バー以外)ポイント{debuff:+d}"
             ],
+            activated_conditional_debuff_sides=(
+                state.activated_conditional_debuff_sides + (side,)
+            ),
         )
 
     if card.id == "card_30":
