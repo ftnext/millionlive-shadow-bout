@@ -999,6 +999,27 @@ def test_conditional_debuff_next_is_applied_only_on_next_round_for_npc_side():
     assert third_state.player.point_modifier == 0
 
 
+def test_buff_scaling_adds_bonus_by_round_number():
+    sayoko = Card(
+        "card_27",
+        "紗代子",
+        "さよこ",
+        Janken.PAPER,
+        14,
+        Effect(EffectType.BUFF_SCALING, "round scaling", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 14, None)
+
+    for round_number, expected_bonus in ((1, 2), (2, 4), (3, 6), (4, 8)):
+        state = GameState(
+            player=PlayerState(hand=[sayoko]),
+            npc=PlayerState(hand=[other]),
+            round_number=round_number,
+        )
+        state = resolve_round(state, sayoko, other)
+        assert state.player.point_modifier == expected_bonus
+
+
 def test_conditional_debuff_next_does_not_apply_to_wildcard():
     subaru = Card(
         "c47",
