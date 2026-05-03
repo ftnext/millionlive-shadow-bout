@@ -59,6 +59,46 @@ def resolve_post_effect_points(state: GameState) -> GameState:
     else:
         log_msg += "引き分け！"
 
-    return replace(
+    updated_state = replace(
         state, current_battle=new_res, battle_log=state.battle_log + [log_msg]
     )
+
+    for side, debuff in state.pending_conditional_debuff_on_loss:
+        side_lost = (side == Side.PLAYER and winning_side == Side.NPC) or (
+            side == Side.NPC and winning_side == Side.PLAYER
+        )
+        if not side_lost:
+            continue
+
+        if side == Side.PLAYER:
+            updated_state = replace(
+                updated_state,
+                npc=replace(
+                    updated_state.npc,
+                    next_round_conditional_point_modifier_non_wildcard=(
+                        updated_state.npc.next_round_conditional_point_modifier_non_wildcard
+                        + debuff
+                    ),
+                ),
+                battle_log=updated_state.battle_log
+                + [
+                    f"効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
+        else:
+            updated_state = replace(
+                updated_state,
+                player=replace(
+                    updated_state.player,
+                    next_round_conditional_point_modifier_non_wildcard=(
+                        updated_state.player.next_round_conditional_point_modifier_non_wildcard
+                        + debuff
+                    ),
+                ),
+                battle_log=updated_state.battle_log
+                + [
+                    f"効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
+
+    return updated_state

@@ -525,6 +525,28 @@ def test_ami_restart_does_not_duplicate_played_cards():
     assert state.npc.hand == [n_extra, other]
 
 
+def test_ami_restart_clears_pending_conditional_debuff_on_loss():
+    ami = Card(
+        "c11",
+        "亜美",
+        "あみ",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.RESTART, "restart", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 15, None)
+    state = GameState(
+        player=PlayerState(hand=[ami]),
+        npc=PlayerState(hand=[other]),
+        pending_conditional_debuff_on_loss=((Side.PLAYER, -3),),
+    )
+
+    state = resolve_round(state, ami, other)
+
+    assert state.phase == Phase.SELECT
+    assert state.pending_conditional_debuff_on_loss == ()
+
+
 def test_ami_consecutive_restart():
     # 5. 亜美の連続使用不可
     ami = Card(
@@ -1137,6 +1159,122 @@ def test_debuff_persistent_applies_current_and_next_round_only():
     third_state = proceed_to_next(next_state)
     assert third_state.round_number == 3
     assert third_state.player.point_modifier == 0
+
+
+def test_debuff_conditional_elena_applies_only_when_lost():
+    elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    lose_state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(
+            hand=[Card("n_lose", "n_lose", "えぬlose", Janken.ROCK, 13, None)]
+        ),
+    )
+    lose_state = resolve_round(lose_state, elena, lose_state.npc.hand[0])
+    assert lose_state.npc.next_round_conditional_point_modifier_non_wildcard == -3
+
+    not_lose_state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(
+            hand=[Card("n_win", "n_win", "えぬwin", Janken.ROCK, 10, None)]
+        ),
+    )
+    not_lose_state = resolve_round(not_lose_state, elena, not_lose_state.npc.hand[0])
+    assert not_lose_state.npc.next_round_conditional_point_modifier_non_wildcard == 0
+
+
+def test_debuff_conditional_elena_does_not_apply_when_negated():
+    elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    chihaya = Card(
+        "c2",
+        "千早",
+        "ちはや",
+        Janken.ROCK,
+        11,
+        Effect(EffectType.NEGATE, "negate", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(hand=[chihaya], point_modifier=2),
+    )
+
+    state = resolve_round(state, elena, chihaya)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.npc.next_round_conditional_point_modifier_non_wildcard == 0
+
+
+def test_debuff_conditional_iku_applies_from_round_3():
+    iku = Card(
+        "card_30",
+        "育",
+        "いく",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "round 3+ next -4", -4),
+    )
+    player_card = Card("p1", "p1", "ぴー1", Janken.ROCK, 12, None)
+    n_other = Card("n2", "n2", "えぬ2", Janken.ROCK, 10, None)
+
+    for round_number in (1, 2):
+        state = GameState(
+            player=PlayerState(hand=[player_card]),
+            npc=PlayerState(hand=[iku, n_other]),
+            round_number=round_number,
+        )
+        state = resolve_round(state, player_card, iku)
+        assert state.player.next_round_conditional_point_modifier_non_wildcard == 0
+
+    for round_number in (3, 4):
+        state = GameState(
+            player=PlayerState(hand=[player_card]),
+            npc=PlayerState(hand=[iku, n_other]),
+            round_number=round_number,
+        )
+        state = resolve_round(state, player_card, iku)
+        assert state.player.next_round_conditional_point_modifier_non_wildcard == -4
+
+
+def test_copied_card_18_effect_applies_on_loss():
+    copy_effect_card = Card(
+        "copy",
+        "copy",
+        "こぴー",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.COPY_EFFECT, "copy", None),
+    )
+    copied_elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    npc_card = Card("n1", "n1", "えぬ1", Janken.ROCK, 12, None)
+    state = GameState(
+        player=PlayerState(hand=[copy_effect_card], deck=[copied_elena]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, copy_effect_card, npc_card)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.npc.next_round_conditional_point_modifier_non_wildcard == -3
 
 
 def test_force_play_sets_forced_card_id_on_opponent_side():
