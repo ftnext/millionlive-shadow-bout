@@ -61,7 +61,8 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
     if ctx is None:
         return state
     p_state = get_player_state(state, side)
-    if ctx.card_id in ("card_26", "c26"):
+    variant = ctx.payload.get("choose_variant")
+    if variant in ("yuriko_choose", "yuriko_return_cards"):
         if ctx.step == 1:
             return_count = int(ctx.payload.get("return_count", 0))
             selected_ids = _parse_card_ids(choice)
@@ -121,7 +122,7 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
         state = update_player(state, side, point_modifier=p_state.point_modifier + 3)
         return _finish_interactive_effect(state, "-> 百合子の効果: ポイント+3")
 
-    if ctx.card_id in ("card_45", "c45"):
+    if variant == "karen_choose":
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
         state = set_must_reveal_played_card(state, get_opponent_side(side), rounds=2)

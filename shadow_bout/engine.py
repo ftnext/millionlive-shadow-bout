@@ -627,14 +627,15 @@ def _choose_npc_pending_effect(
     source_card = _find_card_by_id(state, ctx.card_id)
 
     if ctx.effect == "choose":
+        variant = ctx.payload.get("choose_variant")
         if ctx.step == 1:
             return_count = int(ctx.payload.get("return_count", 0))
             return ",".join(
                 _select_npc_card_ids(npc.hand, return_count, state, npc_strategy)
             )
-        if ctx.card_id in ("card_26", "c26"):
+        if variant == "yuriko_choose":
             return npc_strategy.choose_effect(["gain_points", "draw_cards"], state)
-        if ctx.card_id in ("card_45", "c45"):
+        if variant == "karen_choose":
             if source_card and npc_strategy.should_activate(source_card, state):
                 return "activate"
             return "skip"

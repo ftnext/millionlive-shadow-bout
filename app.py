@@ -228,7 +228,8 @@ def render_pending_effect_form(game_state):
     player = game_state.player
 
     if ctx.effect == "choose":
-        if ctx.card_id in ("card_26", "c26") and ctx.step == 1:
+        variant = ctx.payload.get("choose_variant")
+        if variant == "yuriko_return_cards" and ctx.step == 1:
             return_count = int(ctx.payload.get("return_count", 0))
             options, labels = card_id_options(player.hand)
             selected = st.multiselect(
@@ -250,7 +251,7 @@ def render_pending_effect_form(game_state):
                 submit_effect_choice(game_state, ",".join(selected))
             return
 
-        if ctx.card_id in ("card_26", "c26"):
+        if variant == "yuriko_choose":
             choice = st.radio(
                 "百合子の効果",
                 ["gain_points", "draw_cards"],
@@ -264,7 +265,7 @@ def render_pending_effect_form(game_state):
                 submit_effect_choice(game_state, choice)
             return
 
-        if ctx.card_id in ("card_45", "c45"):
+        if variant == "karen_choose":
             choice = st.radio(
                 "可憐の効果",
                 ["activate", "skip"],
