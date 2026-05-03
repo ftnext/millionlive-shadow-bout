@@ -3,6 +3,8 @@ from dataclasses import replace
 from typing import Callable
 
 from shadow_bout.effect_utils import (
+    add_banned_card_id,
+    clear_forced_card_id,
     get_opponent_side,
     get_player_state,
     update_player,
@@ -330,6 +332,37 @@ def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
         state,
         battle_log=state.battle_log
         + [f"{card.name}の効果発動: 相手は次ラウンドで{target.name}を強制プレイ"],
+    )
+
+
+@register("ban")
+def effect_ban(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    if not opp_state.hand:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の手札がないため不発"],
+        )
+
+    target = random.choice(opp_state.hand)
+    state = add_banned_card_id(state, opp_side, target.id)
+
+    if opp_state.forced_card_id == target.id:
+        state = clear_forced_card_id(state, opp_side)
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 相手の{target.name}を使用禁止（強制プレイは解除）"
+            ],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の{target.name}を使用禁止"],
     )
 
 
