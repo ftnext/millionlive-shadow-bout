@@ -231,6 +231,45 @@ def _resume_swap(state: GameState, side: Side, choice: str | None) -> GameState:
     )
 
 
+def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> GameState:
+    if choice in (None, "", "skip"):
+        return _finish_interactive_effect(state, "-> 麗花の効果: 発動しない")
+
+    p_state = get_player_state(state, side)
+    res = state.current_battle
+    if res is None:
+        return _finish_interactive_effect(
+            state, "-> 麗花の効果: 場のカードがないため不発"
+        )
+
+    old_card = res.player_card if side == Side.PLAYER else res.npc_card
+    target = _find_card(p_state.deck, choice)
+
+    if choice == old_card.id:
+        new_deck = list(p_state.deck)
+        random.shuffle(new_deck)
+        state = update_player(state, side, deck=new_deck)
+        return _finish_interactive_effect(
+            state, f"-> 麗花の効果: {old_card.name}を場に出し直し、山札を切った"
+        )
+
+    if target is None:
+        return _finish_interactive_effect(state, "-> 麗花の効果: 発動しない")
+
+    if side == Side.PLAYER:
+        new_res = replace(res, player_card=target)
+    else:
+        new_res = replace(res, npc_card=target)
+
+    new_deck = [card for card in p_state.deck if card.id != target.id] + [old_card]
+    random.shuffle(new_deck)
+    state = update_player(state, side, deck=new_deck)
+    state = replace(state, current_battle=new_res)
+    return _finish_interactive_effect(
+        state, f"-> 麗花の効果: {old_card.name}を山札に戻し、{target.name}を場に出した"
+    )
+
+
 def _resume_swap_opponent(
     state: GameState, side: Side, choice: str | None
 ) -> GameState:
@@ -432,6 +471,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_search_and_swap(state, side, choice)
     if ctx.effect == "swap":
         return _resume_swap(state, side, choice)
+    if ctx.effect == "tutor_play":
+        return _resume_tutor_play(state, side, choice)
     if ctx.effect == "swap_opponent":
         return _resume_swap_opponent(state, side, choice)
     if ctx.effect == "removal":
@@ -1247,6 +1288,19 @@ def effect_swap(state: GameState, side: Side, card: Card) -> GameState:
     return replace(
         state,
         battle_log=state.battle_log + [f"{card.name}の効果発動: 入れ替え選択待機中..."],
+    )
+
+
+@register("tutor_play")
+def effect_tutor_play(state: GameState, side: Side, card: Card) -> GameState:
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="tutor_play")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 場に出すカード選択待機中..."],
     )
 
 

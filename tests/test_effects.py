@@ -2037,3 +2037,128 @@ def test_immune_blocks_only_opponent_side_of_mutual_draw_effect():
     assert len(state.player.hand) == 2
     assert state.npc.hand == [opp_extra]
     assert state.npc.deck == [opp_deck]
+
+
+def test_tutor_play_swaps_deck_card_into_battle_without_triggering_effect():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor play", None),
+    )
+    target = Card(
+        "target",
+        "強化札",
+        "きょうかふだ",
+        Janken.ROCK,
+        30,
+        Effect(EffectType.BUFF, "buff", 99),
+    )
+    remain = Card("remain", "残り札", "のこりふだ", Janken.SCISSORS, 1, None)
+    other = Card("other", "相手札", "あいてふだ", Janken.PAPER, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[reika], deck=[target, remain]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    random.seed(0)
+    state = resolve_round(state, reika, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice=target.id)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_card == target
+    assert state.current_battle.player_point == 30
+    assert state.player.point_modifier == 0
+    assert target not in state.player.deck
+    assert {card.id for card in state.player.deck} == {"card_48", "remain"}
+    assert target in state.player.discard
+    assert not any("強化札の効果発動" in log for log in state.battle_log)
+
+
+def test_tutor_play_skip_keeps_battle_card_and_deck_unchanged_by_effect():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor play", None),
+    )
+    d1 = Card("d1", "山札1", "やまふだ1", Janken.ROCK, 1, None)
+    d2 = Card("d2", "山札2", "やまふだ2", Janken.SCISSORS, 2, None)
+    other = Card("other", "相手札", "あいてふだ", Janken.PAPER, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[reika], deck=[d1, d2]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, reika, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="skip")
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_card == reika
+    assert state.player.deck == [d1, d2]
+    assert reika in state.npc.won_cards
+
+
+def test_tutor_play_can_select_self_when_deck_is_empty():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor play", None),
+    )
+    other = Card("other", "相手札", "あいてふだ", Janken.PAPER, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[reika], deck=[]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, reika, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice=reika.id)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_card == reika
+    assert state.player.deck == []
+    assert reika in state.npc.won_cards
+
+
+def test_resolve_npc_pending_effects_progresses_tutor_play():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor play", None),
+    )
+    target = Card("target", "強い札", "つよいふだ", Janken.ROCK, 30, None)
+    remain = Card("remain", "残り札", "のこりふだ", Janken.SCISSORS, 1, None)
+    other = Card("other", "相手札", "あいてふだ", Janken.PAPER, 20, None)
+    state = GameState(
+        player=PlayerState(hand=[other]),
+        npc=PlayerState(hand=[reika], deck=[target, remain]),
+    )
+
+    random.seed(0)
+    state = resolve_round(state, other, reika)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.side == Side.NPC
+
+    state = resolve_npc_pending_effects(state, FirstChoiceStrategy())
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.npc_card == target
+    assert state.current_battle.npc_point == 30
+    assert target not in state.npc.deck
+    assert {card.id for card in state.npc.deck} == {"card_48", "remain"}

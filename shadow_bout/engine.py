@@ -691,6 +691,12 @@ def _choose_npc_pending_effect(
             return None
         return npc_strategy.select_target(npc.hand, state).id
 
+    if ctx.effect == "tutor_play":
+        if not source_card or not npc_strategy.should_activate(source_card, state):
+            return "skip"
+        candidates = list(npc.deck) + [source_card]
+        return npc_strategy.select_target(candidates, state).id
+
     if ctx.effect == "swap_opponent":
         player = get_player_state(state, Side.PLAYER)
         if not player.hand:

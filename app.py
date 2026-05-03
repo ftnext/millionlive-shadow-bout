@@ -416,6 +416,43 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "tutor_play":
+        mode = st.radio(
+            "麗花の効果",
+            ["activate", "skip"],
+            format_func=lambda value: {
+                "activate": "発動する",
+                "skip": "発動しない",
+            }[value],
+            horizontal=True,
+        )
+        if mode == "skip":
+            if st.button("発動しない", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        battle_card = None
+        if game_state.current_battle is not None:
+            battle_card = game_state.current_battle.player_card
+        candidates = list(player.deck)
+        if battle_card is not None:
+            candidates.append(battle_card)
+        options, labels = card_id_options(candidates)
+        if not options:
+            st.info("場に出せるカードがありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        choice = st.selectbox(
+            "場に出すカード",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button("場に出す", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
     if ctx.effect == "swap_opponent":
         opponent = game_state.npc if ctx.side == Side.PLAYER else game_state.player
         if not opponent.hand:
