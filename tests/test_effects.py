@@ -527,6 +527,89 @@ def test_takane_draw_reveals_both_remaining_hands_persistently():
     assert next_state.npc.revealed_card_ids == frozenset({n_extra.id})
 
 
+def test_draw_effect_draws_two_cards_for_both_sides():
+    emily = Card(
+        "card_20",
+        "恵美",
+        "めぐみ",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.DRAW, "draw", 2),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    p_draw_1 = Card("p1", "p1", "ぴ1", Janken.PAPER, 1)
+    p_draw_2 = Card("p2", "p2", "ぴ2", Janken.SCISSORS, 2)
+    n_draw_1 = Card("n1", "n1", "ん1", Janken.PAPER, 1)
+    n_draw_2 = Card("n2", "n2", "ん2", Janken.SCISSORS, 2)
+    state = GameState(
+        player=PlayerState(hand=[emily], deck=[p_draw_1, p_draw_2]),
+        npc=PlayerState(hand=[other], deck=[n_draw_1, n_draw_2]),
+    )
+
+    state = resolve_round(state, emily, other)
+
+    assert state.player.hand == [p_draw_1, p_draw_2]
+    assert state.npc.hand == [n_draw_1, n_draw_2]
+    assert state.player.deck == []
+    assert state.npc.deck == []
+
+
+def test_draw_effect_handles_partial_draw_when_decks_are_short():
+    emily = Card(
+        "card_20",
+        "恵美",
+        "めぐみ",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.DRAW, "draw", 2),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    p_draw_only = Card("p1", "p1", "ぴ1", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[emily], deck=[p_draw_only]),
+        npc=PlayerState(hand=[other], deck=[]),
+    )
+
+    state = resolve_round(state, emily, other)
+
+    assert state.player.hand == [p_draw_only]
+    assert state.npc.hand == []
+    assert state.player.deck == []
+    assert state.npc.deck == []
+
+
+def test_draw_effect_for_haruka_returns_hands_to_deck_then_draws():
+    haruka = Card(
+        "card_01",
+        "春香",
+        "はるか",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.DRAW, "draw", 5),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    p_hand_1 = Card("p_h1", "p_h1", "ぴ1", Janken.PAPER, 1)
+    p_hand_2 = Card("p_h2", "p_h2", "ぴ2", Janken.SCISSORS, 2)
+    p_deck_1 = Card("p_d1", "p_d1", "ぴd1", Janken.ROCK, 3)
+    p_deck_2 = Card("p_d2", "p_d2", "ぴd2", Janken.ROCK, 4)
+    n_hand_1 = Card("n_h1", "n_h1", "ん1", Janken.PAPER, 1)
+    n_deck_1 = Card("n_d1", "n_d1", "んd1", Janken.ROCK, 3)
+    n_deck_2 = Card("n_d2", "n_d2", "んd2", Janken.ROCK, 4)
+    state = GameState(
+        player=PlayerState(
+            hand=[haruka, p_hand_1, p_hand_2], deck=[p_deck_1, p_deck_2]
+        ),
+        npc=PlayerState(hand=[other, n_hand_1], deck=[n_deck_1, n_deck_2]),
+    )
+
+    state = resolve_round(state, haruka, other)
+
+    assert len(state.player.hand) == 4
+    assert len(state.player.deck) == 0
+    assert len(state.npc.hand) == 3
+    assert len(state.npc.deck) == 0
+
+
 def test_buff_next_is_applied_only_on_next_round_for_player_side():
     iori = Card(
         "c7",
