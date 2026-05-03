@@ -306,6 +306,28 @@ def effect_buff(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("buff_and_peek")
+def effect_buff_and_peek(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    bonus = int(card.effect.value or 0)
+    state = update_player(state, side, point_modifier=p_state.point_modifier + bonus)
+
+    updated_state = get_player_state(state, side)
+    if not updated_state.deck:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: ポイント+{bonus}、山札が空のため確認できない"],
+        )
+
+    top_card = updated_state.deck[0]
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: ポイント+{bonus}、山札の一番上は{top_card.name}"],
+    )
+
+
 @register("draw")
 def effect_draw(state: GameState, side: Side, card: Card) -> GameState:
     if card.id in ("card_01", "c1"):
