@@ -1754,6 +1754,77 @@ def test_debuff_conditional_elena_does_not_apply_when_negated():
     assert state.npc.next_round_conditional_point_modifier_non_wildcard == 0
 
 
+def test_conditional_debuff_draw_applies_debuff_and_draws_when_won():
+    miya = Card(
+        "card_42",
+        "美也",
+        "みや",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_DEBUFF_DRAW, "conditional -5 then draw", -5),
+    )
+    opponent = Card("n1", "相手", "あいて", Janken.PAPER, 15, None)
+    draw_card = Card("d1", "山札", "やまふだ", Janken.ROCK, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[miya], deck=[draw_card]),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, miya, opponent)
+
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.current_battle.npc_point == 10
+    assert state.player.hand == [draw_card]
+    assert state.player.deck == []
+
+
+def test_conditional_debuff_draw_skips_debuff_when_opponent_point_is_high():
+    miya = Card(
+        "card_42",
+        "美也",
+        "みや",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_DEBUFF_DRAW, "conditional -5 then draw", -5),
+    )
+    opponent = Card("n1", "相手", "あいて", Janken.PAPER, 16, None)
+    draw_card = Card("d1", "山札", "やまふだ", Janken.ROCK, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[miya], deck=[draw_card], point_modifier=5),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, miya, opponent)
+
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.current_battle.npc_point == 16
+    assert state.player.hand == [draw_card]
+
+
+def test_conditional_debuff_draw_does_not_draw_when_not_won():
+    miya = Card(
+        "card_42",
+        "美也",
+        "みや",
+        Janken.PAPER,
+        12,
+        Effect(EffectType.CONDITIONAL_DEBUFF_DRAW, "conditional -5 then draw", -5),
+    )
+    opponent = Card("n1", "相手", "あいて", Janken.PAPER, 15, None)
+    draw_card = Card("d1", "山札", "やまふだ", Janken.ROCK, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[miya], deck=[draw_card], point_modifier=-3),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, miya, opponent)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.current_battle.npc_point == 10
+    assert state.player.hand == []
+    assert state.player.deck == [draw_card]
+
+
 def test_debuff_conditional_iku_applies_from_round_3():
     iku = Card(
         "card_30",
