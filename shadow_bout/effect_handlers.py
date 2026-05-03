@@ -214,6 +214,52 @@ def _resume_swap(state: GameState, side: Side, choice: str | None) -> GameState:
     )
 
 
+def _resume_swap_opponent(
+    state: GameState, side: Side, choice: str | None
+) -> GameState:
+    ctx = state.pending_effect_context
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    if not opp_state.hand:
+        return _finish_interactive_effect(
+            state, "-> 可奈の効果: 相手の手札がないため入れ替えられない"
+        )
+    if ctx and ctx.step == 0:
+        target = random.choice(opp_state.hand)
+        next_ctx = replace(ctx, step=1, payload={**ctx.payload, "target_id": target.id})
+        return replace(
+            state,
+            pending_effect_context=next_ctx,
+            battle_log=state.battle_log
+            + [f"-> 可奈の効果: 相手手札から{target.name}を確認した"],
+        )
+
+    target = _find_card(opp_state.hand, ctx.payload.get("target_id") if ctx else None)
+    if target is None:
+        return _finish_interactive_effect(
+            state, "-> 可奈の効果: 確認したカードが手札にないため入れ替えない"
+        )
+    if choice != "swap":
+        return _finish_interactive_effect(state, "-> 可奈の効果: 入れ替えない")
+    res = state.current_battle
+    if opp_side == Side.PLAYER:
+        old_card = res.player_card
+        new_res = replace(res, player_card=target)
+    else:
+        old_card = res.npc_card
+        new_res = replace(res, npc_card=target)
+
+    new_opp_hand = [card for card in opp_state.hand if card.id != target.id] + [
+        old_card
+    ]
+    state = update_player(state, opp_side, hand=new_opp_hand)
+    state = replace(state, current_battle=new_res)
+    return _finish_interactive_effect(
+        state,
+        f"-> 可奈の効果: 相手手札を確認し、{old_card.name}と{target.name}を入れ替え",
+    )
+
+
 def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameState:
     p_state = get_player_state(state, side)
     if not p_state.discard:
@@ -356,6 +402,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_search_and_swap(state, side, choice)
     if ctx.effect == "swap":
         return _resume_swap(state, side, choice)
+    if ctx.effect == "swap_opponent":
+        return _resume_swap_opponent(state, side, choice)
     if ctx.effect == "removal":
         return _resume_removal(state, side, choice)
     if ctx.effect == "salvage":
@@ -1045,6 +1093,19 @@ def effect_swap(state: GameState, side: Side, card: Card) -> GameState:
     return replace(
         state,
         battle_log=state.battle_log + [f"{card.name}の効果発動: 入れ替え選択待機中..."],
+    )
+
+
+@register("swap_opponent")
+def effect_swap_opponent(state: GameState, side: Side, card: Card) -> GameState:
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="swap_opponent")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手手札確認・入れ替え待機中..."],
     )
 
 
