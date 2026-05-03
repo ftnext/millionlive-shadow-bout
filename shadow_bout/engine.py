@@ -202,6 +202,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         revealed_this_round=None,
         revealed_this_round_side=None,
         pending_conditional_debuff_on_loss=(),
+        point_match_effects=(),
     )
 
 
@@ -700,6 +701,11 @@ def _choose_npc_pending_effect(
         return "swap"
 
     if ctx.effect == "removal":
+        if source_card and npc_strategy.should_activate(source_card, state):
+            return "activate"
+        return "skip"
+
+    if ctx.effect == "set_point_match":
         if source_card and npc_strategy.should_activate(source_card, state):
             return "activate"
         return "skip"

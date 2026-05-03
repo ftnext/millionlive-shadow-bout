@@ -33,6 +33,12 @@ def resolve_post_effect_points(state: GameState) -> GameState:
     p_point = calculate_effective_point(res.player_card, state.player)
     n_point = calculate_effective_point(res.npc_card, state.npc)
 
+    points = {Side.PLAYER: p_point, Side.NPC: n_point}
+    for effect in state.point_match_effects:
+        points[effect.target_side] = points[effect.source_side]
+    p_point = points[Side.PLAYER]
+    n_point = points[Side.NPC]
+
     if p_point > n_point:
         outcome = RoundOutcome.WIN
         winning_side = Side.PLAYER

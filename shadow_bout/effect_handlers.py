@@ -19,6 +19,7 @@ from shadow_bout.models import (
     PendingEffectContext,
     PersistentPointEffect,
     Phase,
+    PointMatchEffect,
     Side,
 )
 
@@ -418,6 +419,34 @@ def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameSta
     return _finish_interactive_effect(state, "-> ジュリアの効果: 勝敗判定をスキップ")
 
 
+def _resume_set_point_match(
+    state: GameState, side: Side, choice: str | None
+) -> GameState:
+    ctx = state.pending_effect_context
+    source_card = _find_card_by_id(state, side, ctx.card_id if ctx else None)
+    source_name = source_card.name if source_card else "歩"
+
+    if choice != "activate":
+        return _finish_interactive_effect(state, f"-> {source_name}の効果: 発動しない")
+
+    if _opponent_is_immune(state, side):
+        return _finish_interactive_effect(
+            state, f"-> {source_name}の効果: 相手は戦具効果を受けないため不発"
+        )
+
+    effect = PointMatchEffect(
+        source_side=side,
+        target_side=get_opponent_side(side),
+    )
+    state = replace(
+        state,
+        point_match_effects=state.point_match_effects + (effect,),
+    )
+    return _finish_interactive_effect(
+        state, f"-> {source_name}の効果: 相手のポイントをこのカードと同じにする"
+    )
+
+
 def resume_pending_effect(state: GameState, choice: str | None = None) -> GameState:
     ctx = state.pending_effect_context
     if not ctx:
@@ -436,6 +465,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_swap_opponent(state, side, choice)
     if ctx.effect == "removal":
         return _resume_removal(state, side, choice)
+    if ctx.effect == "set_point_match":
+        return _resume_set_point_match(state, side, choice)
     if ctx.effect == "salvage":
         return _resume_salvage(state, side, choice)
     if ctx.effect == "reorder":
@@ -794,6 +825,18 @@ def effect_set_point(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("set_point_match")
+def effect_set_point_match(state: GameState, side: Side, card: Card) -> GameState:
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="set_point_match")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 発動選択待機中..."],
+    )
+
+
 @register("conditional_buff")
 def effect_conditional_buff(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -1138,6 +1181,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         effect_queue=[],
         last_restart_round=state.round_number,
         pending_conditional_debuff_on_loss=(),
+        point_match_effects=(),
     )
 
 
