@@ -14,6 +14,7 @@ from shadow_bout.effect_utils import (
 from shadow_bout.models import (
     Card,
     GameState,
+    Janken,
     PendingEffectContext,
     PersistentPointEffect,
     Phase,
@@ -347,6 +348,47 @@ def effect_buff_next(state: GameState, side: Side, card: Card) -> GameState:
         battle_log=state.battle_log
         + [f"{card.name}の効果発動: 次ラウンドのポイント{bonus:+d}"],
     )
+
+
+@register("debuff")
+def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    if card.id in ("card_04", "c4"):
+        current_battle = state.current_battle
+        opp_card = (
+            current_battle.npc_card
+            if opp_side == Side.NPC
+            else current_battle.player_card
+        )
+        conditional = (
+            opp_state.conditional_point_modifier_non_wildcard
+            if opp_card.janken != Janken.WILDCARD
+            else 0
+        )
+        current_point = opp_card.base_point + opp_state.point_modifier + conditional
+        halved_point = current_point // 2
+        new_modifier = halved_point - opp_card.base_point - conditional
+        state = update_player(state, opp_side, point_modifier=new_modifier)
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のポイントを半分(切り捨て)にした"],
+        )
+
+    if card.id in ("card_17", "c17"):
+        debuff = len(opp_state.hand) * int(card.effect.value or 0)
+        state = update_player(
+            state, opp_side, point_modifier=opp_state.point_modifier + debuff
+        )
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の手札枚数ぶんポイント{debuff:+d}"],
+        )
+
+    return state
 
 
 @register("conditional_debuff_next")
