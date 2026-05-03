@@ -1094,7 +1094,7 @@ def test_swap_opponent_effect_noops_when_opponent_hand_is_empty():
     assert state.npc.hand == []
 
 
-def test_tutor_play_effect_swaps_battle_card_with_selected_deck_card():
+def test_tutor_play_effect_swaps_battle_card_with_selected_deck_card(monkeypatch):
     reika = Card(
         "card_48",
         "麗花",
@@ -1111,11 +1111,20 @@ def test_tutor_play_effect_swaps_battle_card_with_selected_deck_card():
         npc=PlayerState(hand=[npc_card]),
     )
 
+    captured = {}
+
+    def fake_shuffle(cards):
+        captured["before"] = [card.id for card in cards]
+        cards.reverse()
+
+    monkeypatch.setattr("shadow_bout.effect_handlers.random.shuffle", fake_shuffle)
+
     state = resolve_round(state, reika, npc_card)
     state = resume_round_effect(state, choice=d2.id)
 
+    assert captured["before"] == [d1.id, reika.id]
     assert state.current_battle.player_card == d2
-    assert state.player.deck == [d1, reika]
+    assert state.player.deck == [reika, d1]
 
 
 def test_tutor_play_effect_can_skip():

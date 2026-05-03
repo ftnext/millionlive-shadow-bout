@@ -415,6 +415,7 @@ def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> Game
         )
 
     new_deck = [card for card in p_state.deck if card.id != target.id] + [source_card]
+    random.shuffle(new_deck)
     state = update_player(state, side, deck=new_deck)
 
     res = state.current_battle
