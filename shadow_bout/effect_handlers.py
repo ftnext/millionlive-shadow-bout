@@ -742,6 +742,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         current_battle=None,
         effect_queue=[],
         last_restart_round=state.round_number,
+        pending_conditional_debuff_on_loss=(),
     )
 
 

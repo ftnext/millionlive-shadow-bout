@@ -390,6 +390,28 @@ def test_ami_restart_does_not_duplicate_played_cards():
     assert state.npc.hand == [n_extra, other]
 
 
+def test_ami_restart_clears_pending_conditional_debuff_on_loss():
+    ami = Card(
+        "c11",
+        "亜美",
+        "あみ",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.RESTART, "restart", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 15, None)
+    state = GameState(
+        player=PlayerState(hand=[ami]),
+        npc=PlayerState(hand=[other]),
+        pending_conditional_debuff_on_loss=((Side.PLAYER, -3),),
+    )
+
+    state = resolve_round(state, ami, other)
+
+    assert state.phase == Phase.SELECT
+    assert state.pending_conditional_debuff_on_loss == ()
+
+
 def test_ami_consecutive_restart():
     # 5. 亜美の連続使用不可
     ami = Card(
