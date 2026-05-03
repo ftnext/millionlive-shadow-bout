@@ -299,17 +299,38 @@ def apply_must_reveal_played_card(
     revealed_cards: list[Card] = []
     revealed_side: Side | None = None
 
-    if game_state.player.must_reveal_played_card:
+    player_must_reveal = (
+        game_state.player.must_reveal_played_card
+        or game_state.player.must_reveal_played_card_rounds > 0
+    )
+    npc_must_reveal = (
+        game_state.npc.must_reveal_played_card
+        or game_state.npc.must_reveal_played_card_rounds > 0
+    )
+
+    if player_must_reveal:
         revealed_cards.append(player_card)
         revealed_side = Side.PLAYER
-    if game_state.npc.must_reveal_played_card:
+    if npc_must_reveal:
         revealed_cards.append(npc_card)
         revealed_side = Side.NPC if revealed_side is None else None
 
     return replace(
         game_state,
-        player=replace(game_state.player, must_reveal_played_card=False),
-        npc=replace(game_state.npc, must_reveal_played_card=False),
+        player=replace(
+            game_state.player,
+            must_reveal_played_card=False,
+            must_reveal_played_card_rounds=max(
+                game_state.player.must_reveal_played_card_rounds - 1, 0
+            ),
+        ),
+        npc=replace(
+            game_state.npc,
+            must_reveal_played_card=False,
+            must_reveal_played_card_rounds=max(
+                game_state.npc.must_reveal_played_card_rounds - 1, 0
+            ),
+        ),
         revealed_this_round=revealed_cards or None,
         revealed_this_round_side=revealed_side,
     )

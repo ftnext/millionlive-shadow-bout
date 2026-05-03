@@ -8,6 +8,7 @@ from shadow_bout.effect_utils import (
     get_opponent_side,
     get_player_state,
     set_must_reveal_played_card,
+    set_must_reveal_played_card_rounds,
     update_player,
 )
 from shadow_bout.models import (
@@ -125,9 +126,10 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
     if variant == "karen_choose":
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
-        state = set_must_reveal_played_card(state, get_opponent_side(side), True)
+        opp_side = get_opponent_side(side)
+        state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
         return _finish_interactive_effect(
-            state, "-> 可憐の効果: 相手の次の出し札を公開"
+            state, "-> 可憐の効果: 相手は2ラウンドの間、出し札を公開"
         )
 
     return _finish_interactive_effect(state, "-> 選択効果: 未対応カード")

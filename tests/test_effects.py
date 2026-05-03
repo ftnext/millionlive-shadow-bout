@@ -360,7 +360,8 @@ def test_karen_choose_activate_sets_must_reveal_on_opponent():
 
     state = resume_round_effect(state, choice="activate")
 
-    assert state.npc.must_reveal_played_card is True
+    assert state.npc.must_reveal_played_card is False
+    assert state.npc.must_reveal_played_card_rounds == 2
 
 
 def test_ami_restart_does_not_duplicate_played_cards():
