@@ -209,8 +209,22 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
     player_bonus = game_state.player.next_round_point_modifier
     npc_bonus = game_state.npc.next_round_point_modifier
 
-    player_persistent_bonus = sum(game_state.player.persistent_point_effects)
-    npc_persistent_bonus = sum(game_state.npc.persistent_point_effects)
+    player_persistent_bonus = sum(
+        effect.value for effect in game_state.player.persistent_point_effects
+    )
+    npc_persistent_bonus = sum(
+        effect.value for effect in game_state.npc.persistent_point_effects
+    )
+    player_remaining_effects = tuple(
+        replace(effect, remaining_turns=effect.remaining_turns - 1)
+        for effect in game_state.player.persistent_point_effects
+        if effect.remaining_turns > 1
+    )
+    npc_remaining_effects = tuple(
+        replace(effect, remaining_turns=effect.remaining_turns - 1)
+        for effect in game_state.npc.persistent_point_effects
+        if effect.remaining_turns > 1
+    )
 
     new_player = replace(
         game_state.player,
@@ -223,7 +237,7 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
             + game_state.player.next_round_conditional_point_modifier_non_wildcard
         ),
         next_round_conditional_point_modifier_non_wildcard=0,
-        persistent_point_effects=(),
+        persistent_point_effects=player_remaining_effects,
     )
     new_npc = replace(
         game_state.npc,
@@ -234,7 +248,7 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
             + game_state.npc.next_round_conditional_point_modifier_non_wildcard
         ),
         next_round_conditional_point_modifier_non_wildcard=0,
-        persistent_point_effects=(),
+        persistent_point_effects=npc_remaining_effects,
     )
 
     logs: list[str] = []

@@ -14,6 +14,7 @@ from shadow_bout.models import (
     EffectType,
     GameState,
     Janken,
+    PersistentPointEffect,
     Phase,
     PlayerState,
     RoundOutcome,
@@ -589,7 +590,9 @@ def test_debuff_persistent_applies_current_and_next_round_only():
 
     state = resolve_round(state, player_card, hinata)
     assert state.player.point_modifier == -2
-    assert state.player.persistent_point_effects == (-2,)
+    assert state.player.persistent_point_effects == (
+        PersistentPointEffect(value=-2, remaining_turns=1),
+    )
 
     next_state = proceed_to_next(state)
     assert next_state.round_number == 2

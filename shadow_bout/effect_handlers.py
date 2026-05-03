@@ -7,7 +7,14 @@ from shadow_bout.effect_utils import (
     get_player_state,
     update_player,
 )
-from shadow_bout.models import Card, GameState, PendingEffectContext, Phase, Side
+from shadow_bout.models import (
+    Card,
+    GameState,
+    PendingEffectContext,
+    PersistentPointEffect,
+    Phase,
+    Side,
+)
 
 EffectHandler = Callable[[GameState, Side, Card], GameState]
 _registry: dict[str, EffectHandler] = {}
@@ -285,7 +292,8 @@ def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameSt
     state = update_player(
         state,
         opp_side,
-        persistent_point_effects=updated_opp_state.persistent_point_effects + (debuff,),
+        persistent_point_effects=updated_opp_state.persistent_point_effects
+        + (PersistentPointEffect(value=debuff, remaining_turns=1),),
     )
     return replace(
         state,
