@@ -701,6 +701,85 @@ def test_draw_effect_for_haruka_returns_hands_to_deck_then_draws():
     assert len(state.npc.deck) == 0
 
 
+def test_draw_dynamic_effect_shuffles_discards_into_deck_and_draws_same_count():
+    random.seed(0)
+    minako = Card(
+        "card_19",
+        "美奈子",
+        "みなこ",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.DRAW_DYNAMIC, "draw dynamic", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    p_deck_1 = Card("p_d1", "p_d1", "ぴd1", Janken.ROCK, 3)
+    p_discard_1 = Card("p_x1", "p_x1", "ぴx1", Janken.PAPER, 1)
+    p_discard_2 = Card("p_x2", "p_x2", "ぴx2", Janken.SCISSORS, 2)
+    state = GameState(
+        player=PlayerState(
+            hand=[minako], deck=[p_deck_1], discard=[p_discard_1, p_discard_2]
+        ),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, minako, other)
+
+    assert len(state.player.hand) == 2
+    assert len(state.player.deck) == 1
+    assert state.player.discard == []
+
+
+def test_draw_dynamic_effect_noops_when_discard_is_empty():
+    minako = Card(
+        "card_19",
+        "美奈子",
+        "みなこ",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.DRAW_DYNAMIC, "draw dynamic", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    p_deck_1 = Card("p_d1", "p_d1", "ぴd1", Janken.ROCK, 3)
+    state = GameState(
+        player=PlayerState(hand=[minako], deck=[p_deck_1], discard=[]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, minako, other)
+
+    assert state.player.hand == []
+    assert state.player.deck == [p_deck_1]
+    assert state.player.discard == []
+
+
+def test_draw_dynamic_effect_draws_only_available_cards_when_deck_short():
+    random.seed(0)
+    minako = Card(
+        "card_19",
+        "美奈子",
+        "みなこ",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.DRAW_DYNAMIC, "draw dynamic", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    p_discard_1 = Card("p_x1", "p_x1", "ぴx1", Janken.PAPER, 1)
+    p_discard_2 = Card("p_x2", "p_x2", "ぴx2", Janken.SCISSORS, 2)
+    p_discard_3 = Card("p_x3", "p_x3", "ぴx3", Janken.ROCK, 3)
+    state = GameState(
+        player=PlayerState(
+            hand=[minako], deck=[], discard=[p_discard_1, p_discard_2, p_discard_3]
+        ),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, minako, other)
+
+    assert len(state.player.hand) == 3
+    assert state.player.deck == []
+    assert state.player.discard == []
+
+
 def test_buff_next_is_applied_only_on_next_round_for_player_side():
     iori = Card(
         "c7",
