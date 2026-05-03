@@ -241,6 +241,26 @@ def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameSta
     )
 
 
+def _resume_reorder(state: GameState, side: Side, choice: str | None) -> GameState:
+    p_state = get_player_state(state, side)
+    if not p_state.deck:
+        return _finish_interactive_effect(state, "-> 茜の効果: 並び替える山札がない")
+
+    selected_ids = _parse_card_ids(choice)
+    ordered: list[Card] = []
+    used_ids: set[str] = set()
+    for card_id in selected_ids:
+        card = _find_card(p_state.deck, card_id)
+        if card is None or card.id in used_ids:
+            continue
+        ordered.append(card)
+        used_ids.add(card.id)
+
+    ordered.extend(card for card in p_state.deck if card.id not in used_ids)
+    state = update_player(state, side, deck=ordered)
+    return _finish_interactive_effect(state, "-> 茜の効果: 山札の順番を入れ替えた")
+
+
 def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameState:
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
@@ -285,6 +305,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_removal(state, side, choice)
     if ctx.effect == "salvage":
         return _resume_salvage(state, side, choice)
+    if ctx.effect == "reorder":
+        return _resume_reorder(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -885,6 +907,26 @@ def effect_salvage(state: GameState, side: Side, card: Card) -> GameState:
     return replace(
         state,
         battle_log=state.battle_log + [f"{card.name}の効果発動: 回収選択待機中..."],
+    )
+
+
+@register("reorder")
+def effect_reorder(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    if len(p_state.deck) <= 1:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 並び替える山札がないため不発"],
+        )
+
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="reorder")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 並び替え待機中..."],
     )
 
 

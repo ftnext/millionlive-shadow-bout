@@ -385,6 +385,34 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "reorder":
+        options, labels = card_id_options(player.deck)
+        if len(options) <= 1:
+            st.info("並び替える山札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        ordered_ids = st.multiselect(
+            "山札の上から順にカードを選択",
+            options,
+            default=options,
+            format_func=lambda card_id: labels[card_id],
+            max_selections=len(options),
+            key="reorder_deck_cards",
+        )
+        is_ready = len(ordered_ids) == len(options)
+        if not is_ready:
+            st.caption("山札の全カードを順番どおりに選択してください。")
+        if st.button(
+            "この順番にする",
+            type="primary",
+            disabled=not is_ready,
+            use_container_width=True,
+        ):
+            submit_effect_choice(game_state, ",".join(ordered_ids))
+        return
+
     st.info("この効果は追加の入力なしで解決します。")
     if st.button("次へ", type="primary", use_container_width=True):
         submit_effect_choice(game_state, None)
