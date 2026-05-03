@@ -283,10 +283,20 @@ def set_battle_cards_as_played(
     new_player = replace(
         game_state.player,
         hand=[card for card in game_state.player.hand if card.id != player_card.id],
+        forced_card_id=(
+            None
+            if game_state.player.forced_card_id == player_card.id
+            else game_state.player.forced_card_id
+        ),
     )
     new_npc = replace(
         game_state.npc,
         hand=[card for card in game_state.npc.hand if card.id != npc_card.id],
+        forced_card_id=(
+            None
+            if game_state.npc.forced_card_id == npc_card.id
+            else game_state.npc.forced_card_id
+        ),
     )
     return replace(game_state, player=new_player, npc=new_npc)
 
@@ -318,10 +328,10 @@ def start_game(deck: list[Card]) -> GameState:
 def _is_playable_under_constraints(player_state: PlayerState, card: Card) -> bool:
     if card.id in player_state.banned_card_ids:
         return False
-    if (
-        player_state.forced_card_id is not None
-        and card.id != player_state.forced_card_id
-    ):
+    has_forced_card_in_hand = player_state.forced_card_id is not None and any(
+        hand_card.id == player_state.forced_card_id for hand_card in player_state.hand
+    )
+    if has_forced_card_in_hand and card.id != player_state.forced_card_id:
         return False
     return True
 

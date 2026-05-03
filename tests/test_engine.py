@@ -85,6 +85,20 @@ def test_select_card_applies_npc_forced_play(mock_cards):
     next_state = select_card(state, p1, FirstCardStrategy())
 
     assert all(card.id != n2.id for card in next_state.npc.hand)
+    assert next_state.npc.forced_card_id is None
+
+
+def test_select_card_allows_play_when_forced_card_is_no_longer_in_hand(mock_cards):
+    p1, p2, n1, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1, p2], forced_card_id="missing-card-id"),
+        npc=PlayerState(hand=[n1]),
+        phase=Phase.SELECT,
+    )
+
+    next_state = select_card(state, p1, FirstCardStrategy())
+
+    assert next_state.phase == Phase.REVEAL
 
 
 def test_select_card_rejects_when_npc_has_no_playable_card(mock_cards):
