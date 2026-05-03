@@ -1,6 +1,6 @@
 import random
 
-from shadow_bout.effects import calculate_effective_point, get_effect_handler
+from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
     continue_round_effect_step,
     proceed_to_next,
@@ -934,23 +934,22 @@ def test_debuff_conditional_elena_applies_only_when_lost():
         12,
         Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
     )
-    handler = get_effect_handler(EffectType.DEBUFF_CONDITIONAL.value)
-    assert handler is not None
-
     lose_state = GameState(
         player=PlayerState(hand=[elena]),
-        npc=PlayerState(hand=[]),
-        current_battle=type("Battle", (), {"winning_side": Side.NPC})(),
+        npc=PlayerState(
+            hand=[Card("n_lose", "n_lose", "えぬlose", Janken.ROCK, 13, None)]
+        ),
     )
-    lose_state = handler(lose_state, Side.PLAYER, elena)
+    lose_state = resolve_round(lose_state, elena, lose_state.npc.hand[0])
     assert lose_state.npc.next_round_conditional_point_modifier_non_wildcard == -3
 
     not_lose_state = GameState(
         player=PlayerState(hand=[elena]),
-        npc=PlayerState(hand=[]),
-        current_battle=type("Battle", (), {"winning_side": Side.PLAYER})(),
+        npc=PlayerState(
+            hand=[Card("n_win", "n_win", "えぬwin", Janken.ROCK, 10, None)]
+        ),
     )
-    not_lose_state = handler(not_lose_state, Side.PLAYER, elena)
+    not_lose_state = resolve_round(not_lose_state, elena, not_lose_state.npc.hand[0])
     assert not_lose_state.npc.next_round_conditional_point_modifier_non_wildcard == 0
 
 

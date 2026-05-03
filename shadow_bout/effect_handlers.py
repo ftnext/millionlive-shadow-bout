@@ -568,32 +568,12 @@ def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameS
     debuff = int(card.effect.value or 0)
 
     if card.id == "card_18":
-        current_battle = state.current_battle
-        if (
-            current_battle is not None
-            and current_battle.winning_side is not None
-            and current_battle.winning_side != side
-        ):
-            state = update_player(
-                state,
-                opp_side,
-                next_round_conditional_point_modifier_non_wildcard=(
-                    opp_state.next_round_conditional_point_modifier_non_wildcard
-                    + debuff
-                ),
-            )
-            return replace(
-                state,
-                battle_log=state.battle_log
-                + [
-                    f"{card.name}の効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
-                ],
-            )
-
         return replace(
             state,
             battle_log=state.battle_log
-            + [f"{card.name}の効果発動: 敗北条件を満たさず不発"],
+            + [
+                f"{card.name}の効果発動: この勝負で敗北した場合に次ラウンド(バー以外)ポイント{debuff:+d}"
+            ],
         )
 
     if card.id == "card_30":
