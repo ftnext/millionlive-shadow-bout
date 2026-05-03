@@ -785,6 +785,51 @@ def test_steal_draw_effect_noops_when_opponent_deck_is_empty():
     assert state.npc.deck == []
 
 
+def test_buff_and_peek_adds_point_and_logs_top_card():
+    tamaki = Card(
+        "card_40",
+        "環",
+        "たまき",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.BUFF_AND_PEEK, "buff and peek", 2),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    top = Card("d1", "でっき1", "でっき1", Janken.PAPER, 1)
+    remain = Card("d2", "でっき2", "でっき2", Janken.SCISSORS, 2)
+    state = GameState(
+        player=PlayerState(hand=[tamaki], deck=[top, remain]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, tamaki, other)
+
+    assert state.player.point_modifier == 2
+    assert state.player.deck == [top, remain]
+    assert any("山札の一番上はでっき1" in log for log in state.battle_log)
+
+
+def test_buff_and_peek_adds_point_when_deck_is_empty():
+    tamaki = Card(
+        "card_40",
+        "環",
+        "たまき",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.BUFF_AND_PEEK, "buff and peek", 2),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[tamaki], deck=[]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, tamaki, other)
+
+    assert state.player.point_modifier == 2
+    assert any("山札が空のため確認できない" in log for log in state.battle_log)
+
+
 def test_steal_hand_effect_moves_random_card_from_opponent_hand_to_own_hand():
     random.seed(0)
     rio = Card(
