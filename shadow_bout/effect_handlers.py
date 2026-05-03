@@ -313,6 +313,26 @@ def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("force_play")
+def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    if not opp_state.hand:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の手札がないため不発"],
+        )
+
+    target = random.choice(opp_state.hand)
+    state = update_player(state, opp_side, forced_card_id=target.id)
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手は次ラウンドで{target.name}を強制プレイ"],
+    )
+
+
 @register("reveal")
 def effect_reveal(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)

@@ -602,3 +602,65 @@ def test_debuff_persistent_applies_current_and_next_round_only():
     third_state = proceed_to_next(next_state)
     assert third_state.round_number == 3
     assert third_state.player.point_modifier == 0
+
+
+def test_force_play_sets_forced_card_id_on_opponent_side():
+    tamaki = Card(
+        "c12",
+        "環",
+        "たまき",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.FORCE_PLAY, "force play", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    n_extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1)
+    state = GameState(
+        player=PlayerState(hand=[tamaki]),
+        npc=PlayerState(hand=[other, n_extra]),
+    )
+
+    state = resolve_round(state, tamaki, other)
+
+    assert state.npc.forced_card_id == n_extra.id
+
+
+def test_npc_force_play_sets_forced_card_id_on_player_side():
+    tamaki = Card(
+        "c12",
+        "環",
+        "たまき",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.FORCE_PLAY, "force play", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    p_extra = Card("p_extra", "p_extra", "ぴ", Janken.SCISSORS, 1)
+    state = GameState(
+        player=PlayerState(hand=[other, p_extra]),
+        npc=PlayerState(hand=[tamaki]),
+    )
+
+    state = resolve_round(state, other, tamaki)
+
+    assert state.player.forced_card_id == p_extra.id
+
+
+def test_force_play_is_safe_when_opponent_has_no_hand():
+    tamaki = Card(
+        "c12",
+        "環",
+        "たまき",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.FORCE_PLAY, "force play", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 13, None)
+    state = GameState(
+        player=PlayerState(hand=[tamaki]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, tamaki, other)
+
+    assert state.npc.forced_card_id is None
