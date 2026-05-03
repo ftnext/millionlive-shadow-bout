@@ -1506,3 +1506,121 @@ def test_conditional_buff_does_not_apply_when_opponent_won_total_is_not_higher()
     assert state.current_battle.player_point == 14
     assert state.current_battle.npc_point == 14
     assert any("不発" in log for log in state.battle_log)
+
+
+def test_immune_blocks_opponent_debuff_and_negate_but_allows_own_buff():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    debuff = Card(
+        "card_04",
+        "雪歩",
+        "ゆきほ",
+        Janken.SCISSORS,
+        15,
+        Effect(EffectType.DEBUFF, "debuff", -1),
+    )
+    buff = Card(
+        "c5",
+        "やよい",
+        "やよい",
+        Janken.SCISSORS,
+        16,
+        Effect(EffectType.BUFF, "+5", 5),
+    )
+    negate = Card(
+        "c2",
+        "千早",
+        "ちはや",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.NEGATE, "negate", None),
+    )
+
+    state_with_immune = GameState(
+        player=PlayerState(hand=[emily]),
+        npc=PlayerState(hand=[debuff, negate]),
+    )
+    state_with_immune = resolve_round(state_with_immune, emily, debuff)
+
+    assert state_with_immune.current_battle.player_point == 13
+    assert state_with_immune.current_battle.npc_point == 15
+
+    state_without_immune = GameState(
+        player=PlayerState(hand=[buff]),
+        npc=PlayerState(hand=[debuff, negate]),
+    )
+    state_without_immune = resolve_round(state_without_immune, buff, debuff)
+
+    assert state_without_immune.current_battle.player_point == 13
+    assert state_without_immune.current_battle.npc_point == 15
+
+    state_immune_vs_negate = GameState(
+        player=PlayerState(hand=[emily]),
+        npc=PlayerState(hand=[negate]),
+    )
+    state_immune_vs_negate = resolve_round(state_immune_vs_negate, emily, negate)
+
+    assert state_immune_vs_negate.player.effect_negated is False
+
+
+def test_immune_blocks_steal_hand_and_reveal_and_curse():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    steal = Card(
+        "card_20",
+        "可奈",
+        "かな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.STEAL_HAND, "steal_hand", None),
+    )
+    reveal = Card(
+        "card_09",
+        "あずさ",
+        "あずさ",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.REVEAL, "reveal", None),
+    )
+    curse = Card(
+        "c51",
+        "呪い",
+        "のろい",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.CURSE, "curse", None),
+    )
+    extra = Card("x1", "extra", "えくすとら", Janken.PAPER, 1)
+
+    state = GameState(
+        player=PlayerState(hand=[emily, extra]),
+        npc=PlayerState(hand=[steal]),
+    )
+    state = resolve_round(state, emily, steal)
+    assert state.player.hand == [extra]
+
+    state = GameState(
+        player=PlayerState(hand=[emily, extra]),
+        npc=PlayerState(hand=[reveal]),
+    )
+    state = resolve_round(state, emily, reveal)
+    assert state.player.revealed_card_ids == frozenset()
+
+    state = GameState(
+        player=PlayerState(hand=[emily]),
+        npc=PlayerState(hand=[curse]),
+    )
+    state = resolve_round(state, emily, curse)
+    assert state.player.must_reveal_played_card is False

@@ -73,6 +73,23 @@ def _find_card_by_id(state: GameState, side: Side, card_id: str | None) -> Card 
     )
 
 
+def _is_immune_active(state: GameState, side: Side) -> bool:
+    battle = state.current_battle
+    if battle is None:
+        return False
+
+    card = battle.player_card if side == Side.PLAYER else battle.npc_card
+    return bool(card.effect and card.effect.type.value == "immune")
+
+
+def _is_blocked_by_immune(
+    state: GameState, source_side: Side, target_side: Side
+) -> bool:
+    if source_side == target_side:
+        return False
+    return _is_immune_active(state, target_side)
+
+
 def _parse_card_ids(choice: str | None) -> list[str]:
     if not choice:
         return []
@@ -316,6 +333,15 @@ def effect_null(state: GameState, side: Side, card: Card) -> GameState:
     return state
 
 
+@register("immune")
+def effect_immune(state: GameState, side: Side, card: Card) -> GameState:
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の戦具効果を受けない"],
+    )
+
+
 @register("buff")
 def effect_buff(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -536,6 +562,12 @@ def effect_buff_scaling(state: GameState, side: Side, card: Card) -> GameState:
 @register("debuff")
 def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
 
     if card.id in ("card_04", "c4"):
@@ -577,6 +609,12 @@ def effect_debuff(state: GameState, side: Side, card: Card) -> GameState:
 @register("set_point")
 def effect_set_point(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
 
     set_value = int(card.effect.value or 0)
@@ -636,6 +674,12 @@ def effect_conditional_debuff_next(
     state: GameState, side: Side, card: Card
 ) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
     state = update_player(
@@ -655,6 +699,12 @@ def effect_conditional_debuff_next(
 @register("debuff_persistent")
 def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
     state = update_player(
@@ -678,6 +728,12 @@ def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameSt
 @register("debuff_conditional")
 def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
     debuff = int(card.effect.value or 0)
 
@@ -727,6 +783,12 @@ def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameS
 @register("negate")
 def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     state = update_player(state, opp_side, effect_negated=True)
     return replace(
         state,
@@ -738,6 +800,12 @@ def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
 @register("force_play")
 def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return replace(
@@ -758,6 +826,12 @@ def effect_force_play(state: GameState, side: Side, card: Card) -> GameState:
 @register("ban")
 def effect_ban(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
+    if _is_blocked_by_immune(state, side, opp_side):
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+        )
     opp_state = get_player_state(state, opp_side)
     if not opp_state.hand:
         return replace(

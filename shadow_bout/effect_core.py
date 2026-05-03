@@ -8,6 +8,39 @@ from shadow_bout.effect_scoring import (
 from shadow_bout.effect_utils import get_player_state
 from shadow_bout.models import Card, GameState, Phase, Side
 
+_OPPONENT_TARGETING_EFFECTS = frozenset(
+    {
+        "ban",
+        "conditional_debuff_next",
+        "curse",
+        "debuff",
+        "debuff_conditional",
+        "debuff_persistent",
+        "force_play",
+        "negate",
+        "reveal",
+        "reveal_all",
+        "set_point",
+        "steal_draw",
+        "steal_hand",
+    }
+)
+
+
+def _is_immune_active(state: GameState, side: Side) -> bool:
+    battle = state.current_battle
+    if battle is None:
+        return False
+    card = battle.player_card if side == Side.PLAYER else battle.npc_card
+    return bool(card.effect and card.effect.type.value == "immune")
+
+
+def _is_blocked_by_immune(state: GameState, side: Side, card: Card) -> bool:
+    if not card.effect or card.effect.type.value not in _OPPONENT_TARGETING_EFFECTS:
+        return False
+    opp_side = Side.NPC if side == Side.PLAYER else Side.PLAYER
+    return _is_immune_active(state, opp_side)
+
 
 def init_effect_resolution(state: GameState, p_card: Card, n_card: Card) -> GameState:
     # Sort order: smaller base_point first, then kana.
@@ -39,6 +72,15 @@ def process_next_effect(state: GameState) -> GameState:
         if not card.effect:
             current_state = replace(
                 current_state, effect_queue=current_state.effect_queue[1:]
+            )
+            continue
+
+        if _is_blocked_by_immune(current_state, side, card):
+            current_state = replace(
+                current_state,
+                effect_queue=current_state.effect_queue[1:],
+                battle_log=current_state.battle_log
+                + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
             )
             continue
 
@@ -88,6 +130,14 @@ def process_next_effect_step(state: GameState) -> GameState:
 
         p_state = get_player_state(current_state, side)
         if p_state.effect_negated or not card.effect:
+            break
+
+        if _is_blocked_by_immune(current_state, side, card):
+            current_state = replace(
+                current_state,
+                battle_log=current_state.battle_log
+                + [f"{card.name}の効果発動: 相手のimmuneにより無効"],
+            )
             break
 
         handler = get_effect_handler(card.effect.type.value)
