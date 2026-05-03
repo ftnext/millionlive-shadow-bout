@@ -393,13 +393,14 @@ def render_pending_effect_form(game_state):
                 submit_effect_choice(game_state, None)
             return
 
+        reorder_key = f"reorder_deck_cards_{game_state.round_number}_{ctx.card_id}_{ctx.side.value}"
         ordered_ids = st.multiselect(
             "山札の上から順にカードを選択",
             options,
             default=options,
             format_func=lambda card_id: labels[card_id],
             max_selections=len(options),
-            key="reorder_deck_cards",
+            key=reorder_key,
         )
         is_ready = len(ordered_ids) == len(options)
         if not is_ready:
