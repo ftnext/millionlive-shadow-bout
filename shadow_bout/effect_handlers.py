@@ -161,6 +161,10 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
     if variant == "karen_choose":
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
+        if _opponent_is_immune(state, side):
+            return _finish_interactive_effect(
+                state, "-> 可憐の効果: 相手は戦具効果を受けないため不発"
+            )
         opp_side = get_opponent_side(side)
         state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
         return _finish_interactive_effect(

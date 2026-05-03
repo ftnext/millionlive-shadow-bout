@@ -556,6 +556,40 @@ def test_karen_choose_activate_sets_must_reveal_on_opponent():
     assert state.npc.must_reveal_played_card_rounds == 2
 
 
+def test_immune_blocks_karen_choose_reveal_effect_on_resume():
+    karen = Card(
+        "card_45",
+        "可憐",
+        "かれん",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.SCISSORS,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[karen]),
+        npc=PlayerState(hand=[emily]),
+    )
+
+    state = resolve_round(state, karen, emily)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.npc.must_reveal_played_card_rounds == 0
+    assert any(
+        "可憐の効果: 相手は戦具効果を受けないため不発" in log
+        for log in state.battle_log
+    )
+
+
 def test_umi_choose_multiple_discard_only_applies_buff():
     umi = Card(
         "card_29",
