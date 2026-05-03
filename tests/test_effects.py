@@ -1,6 +1,6 @@
 import random
 
-from shadow_bout.effects import calculate_effective_point
+from shadow_bout.effects import calculate_effective_point, get_effect_handler
 from shadow_bout.engine import (
     continue_round_effect_step,
     proceed_to_next,
@@ -923,6 +923,66 @@ def test_debuff_persistent_applies_current_and_next_round_only():
     third_state = proceed_to_next(next_state)
     assert third_state.round_number == 3
     assert third_state.player.point_modifier == 0
+
+
+def test_debuff_conditional_elena_applies_only_when_lost():
+    elena = Card(
+        "card_18",
+        "エレナ",
+        "えれな",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "lose then next -3", -3),
+    )
+    handler = get_effect_handler(EffectType.DEBUFF_CONDITIONAL.value)
+    assert handler is not None
+
+    lose_state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(hand=[]),
+        current_battle=type("Battle", (), {"winning_side": Side.NPC})(),
+    )
+    lose_state = handler(lose_state, Side.PLAYER, elena)
+    assert lose_state.npc.next_round_conditional_point_modifier_non_wildcard == -3
+
+    not_lose_state = GameState(
+        player=PlayerState(hand=[elena]),
+        npc=PlayerState(hand=[]),
+        current_battle=type("Battle", (), {"winning_side": Side.PLAYER})(),
+    )
+    not_lose_state = handler(not_lose_state, Side.PLAYER, elena)
+    assert not_lose_state.npc.next_round_conditional_point_modifier_non_wildcard == 0
+
+
+def test_debuff_conditional_iku_applies_from_round_3():
+    iku = Card(
+        "card_30",
+        "育",
+        "いく",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.DEBUFF_CONDITIONAL, "round 3+ next -4", -4),
+    )
+    player_card = Card("p1", "p1", "ぴー1", Janken.ROCK, 12, None)
+    n_other = Card("n2", "n2", "えぬ2", Janken.ROCK, 10, None)
+
+    for round_number in (1, 2):
+        state = GameState(
+            player=PlayerState(hand=[player_card]),
+            npc=PlayerState(hand=[iku, n_other]),
+            round_number=round_number,
+        )
+        state = resolve_round(state, player_card, iku)
+        assert state.player.next_round_conditional_point_modifier_non_wildcard == 0
+
+    for round_number in (3, 4):
+        state = GameState(
+            player=PlayerState(hand=[player_card]),
+            npc=PlayerState(hand=[iku, n_other]),
+            round_number=round_number,
+        )
+        state = resolve_round(state, player_card, iku)
+        assert state.player.next_round_conditional_point_modifier_non_wildcard == -4
 
 
 def test_force_play_sets_forced_card_id_on_opponent_side():

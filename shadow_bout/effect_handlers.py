@@ -561,6 +561,72 @@ def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameSt
     )
 
 
+@register("debuff_conditional")
+def effect_debuff_conditional(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    debuff = int(card.effect.value or 0)
+
+    if card.id == "card_18":
+        current_battle = state.current_battle
+        if (
+            current_battle is not None
+            and current_battle.winning_side is not None
+            and current_battle.winning_side != side
+        ):
+            state = update_player(
+                state,
+                opp_side,
+                next_round_conditional_point_modifier_non_wildcard=(
+                    opp_state.next_round_conditional_point_modifier_non_wildcard
+                    + debuff
+                ),
+            )
+            return replace(
+                state,
+                battle_log=state.battle_log
+                + [
+                    f"{card.name}の効果発動: 敗北したため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
+
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 敗北条件を満たさず不発"],
+        )
+
+    if card.id == "card_30":
+        if state.round_number >= 3:
+            state = update_player(
+                state,
+                opp_side,
+                next_round_conditional_point_modifier_non_wildcard=(
+                    opp_state.next_round_conditional_point_modifier_non_wildcard
+                    + debuff
+                ),
+            )
+            return replace(
+                state,
+                battle_log=state.battle_log
+                + [
+                    f"{card.name}の効果発動: 3戦目以降のため相手の次ラウンド(バー以外)ポイント{debuff:+d}"
+                ],
+            )
+
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 3戦目未満のため不発(R{state.round_number})"],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 未対応の条件カードID({card.id})"],
+    )
+
+
 @register("negate")
 def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)
