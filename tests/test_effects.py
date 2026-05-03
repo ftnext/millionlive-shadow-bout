@@ -1,3 +1,5 @@
+import random
+
 from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
     continue_round_effect_step,
@@ -569,6 +571,51 @@ def test_steal_draw_effect_noops_when_opponent_deck_is_empty():
 
     assert state.player.hand == []
     assert state.npc.deck == []
+
+
+def test_steal_hand_effect_moves_random_card_from_opponent_hand_to_own_hand():
+    random.seed(0)
+    rio = Card(
+        "card_46",
+        "莉緒",
+        "りお",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.STEAL_HAND, "steal hand", 1),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    n1 = Card("n1", "n1", "えぬ1", Janken.PAPER, 1)
+    n2 = Card("n2", "n2", "えぬ2", Janken.ROCK, 2)
+    state = GameState(
+        player=PlayerState(hand=[rio]),
+        npc=PlayerState(hand=[other, n1, n2]),
+    )
+
+    state = resolve_round(state, rio, other)
+
+    assert state.player.hand == [n2]
+    assert state.npc.hand == [n1]
+
+
+def test_steal_hand_effect_noops_when_opponent_hand_is_empty():
+    rio = Card(
+        "card_46",
+        "莉緒",
+        "りお",
+        Janken.SCISSORS,
+        11,
+        Effect(EffectType.STEAL_HAND, "steal hand", 1),
+    )
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    state = GameState(
+        player=PlayerState(hand=[rio]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, rio, other)
+
+    assert state.player.hand == []
+    assert state.npc.hand == []
 
 
 def test_draw_effect_draws_two_cards_for_both_sides():

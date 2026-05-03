@@ -355,6 +355,40 @@ def effect_steal_draw(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("steal_hand")
+def effect_steal_hand(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    if not opp_state.hand:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の手札が空のため不発"],
+        )
+
+    stolen_idx = random.randrange(len(opp_state.hand))
+    stolen = opp_state.hand[stolen_idx]
+    state = update_player(
+        state,
+        opp_side,
+        hand=[c for i, c in enumerate(opp_state.hand) if i != stolen_idx],
+    )
+
+    own_state = get_player_state(state, side)
+    state = update_player(
+        state,
+        side,
+        hand=own_state.hand + [stolen],
+    )
+
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の手札から{stolen.name}を奪って手札に加えた"],
+    )
+
+
 @register("buff_dynamic")
 def effect_buff_dynamic(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
