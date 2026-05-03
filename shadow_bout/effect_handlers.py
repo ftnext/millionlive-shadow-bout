@@ -827,6 +827,64 @@ def effect_conditional_buff(state: GameState, side: Side, card: Card) -> GameSta
     )
 
 
+@register("conditional_negate_buff")
+def effect_conditional_negate_buff(
+    state: GameState, side: Side, card: Card
+) -> GameState:
+    opp_side = get_opponent_side(side)
+    opponent_is_immune = _opponent_is_immune(state, side)
+
+    current_battle = state.current_battle
+    if current_battle is None:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 場のカードがないため不発"],
+        )
+
+    p_state = get_player_state(state, side)
+    opp_state = get_player_state(state, opp_side)
+    opp_card = (
+        current_battle.npc_card if opp_side == Side.NPC else current_battle.player_card
+    )
+    conditional = (
+        opp_state.conditional_point_modifier_non_wildcard
+        if opp_card.janken != Janken.WILDCARD
+        else 0
+    )
+    opponent_point = opp_card.base_point + opp_state.point_modifier + conditional
+
+    if opponent_point % 2 == 0:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 相手のポイント({opponent_point})が偶数のため不発"
+            ],
+        )
+
+    bonus = int(card.effect.value or 0)
+    if not opponent_is_immune:
+        state = update_player(state, opp_side, effect_negated=True)
+    state = update_player(state, side, point_modifier=p_state.point_modifier + bonus)
+    if opponent_is_immune:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [
+                f"{card.name}の効果発動: 相手のポイント({opponent_point})が奇数だが、相手は戦具効果を受けないため無効化できず、ポイント+{bonus}"
+            ],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [
+            f"{card.name}の効果発動: 相手のポイント({opponent_point})が奇数のため相手の戦具効果を無効化し、ポイント+{bonus}"
+        ],
+    )
+
+
 @register("conditional_debuff_next")
 def effect_conditional_debuff_next(
     state: GameState, side: Side, card: Card
