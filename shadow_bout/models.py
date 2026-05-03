@@ -118,6 +118,9 @@ class PlayerState:
     next_round_point_modifier: int = 0
     next_round_conditional_point_modifier_non_wildcard: int = 0
     effect_negated: bool = False
+    banned_card_ids: frozenset[str] = frozenset()
+    forced_card_id: str | None = None
+    must_reveal_played_card: bool = False
 
 
 @dataclass(frozen=True)

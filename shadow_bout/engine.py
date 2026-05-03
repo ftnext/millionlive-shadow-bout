@@ -286,10 +286,47 @@ def start_game(deck: list[Card]) -> GameState:
     return replace(state, phase=Phase.SELECT)
 
 
+def _is_playable_under_constraints(player_state: PlayerState, card: Card) -> bool:
+    if card.id in player_state.banned_card_ids:
+        return False
+    if (
+        player_state.forced_card_id is not None
+        and card.id != player_state.forced_card_id
+    ):
+        return False
+    return True
+
+
+def _validate_selected_card(player_state: PlayerState, card: Card, side: Side) -> None:
+    if not _is_playable_under_constraints(player_state, card):
+        if (
+            player_state.forced_card_id is not None
+            and card.id != player_state.forced_card_id
+        ):
+            raise ValueError(
+                f"{side.value} must play forced card: {player_state.forced_card_id}"
+            )
+        raise ValueError(f"{side.value} cannot play banned card: {card.id}")
+
+
+def _select_npc_card_with_constraints(
+    game_state: GameState, npc_strategy: NpcStrategy
+) -> Card:
+    constrained_hand = [
+        card
+        for card in game_state.npc.hand
+        if _is_playable_under_constraints(game_state.npc, card)
+    ]
+    if constrained_hand:
+        return npc_strategy.select_card(constrained_hand, game_state)
+    return npc_strategy.select_card(game_state.npc.hand, game_state)
+
+
 def select_card(
     game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
 ) -> GameState:
-    npc_card = npc_strategy.select_card(game_state.npc.hand, game_state)
+    _validate_selected_card(game_state.player, player_card, Side.PLAYER)
+    npc_card = _select_npc_card_with_constraints(game_state, npc_strategy)
     return resolve_npc_pending_effects(
         resolve_round(game_state, player_card, npc_card), npc_strategy
     )
@@ -298,7 +335,8 @@ def select_card(
 def select_card_stepwise(
     game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
 ) -> GameState:
-    npc_card = npc_strategy.select_card(game_state.npc.hand, game_state)
+    _validate_selected_card(game_state.player, player_card, Side.PLAYER)
+    npc_card = _select_npc_card_with_constraints(game_state, npc_strategy)
     return resolve_round_stepwise(game_state, player_card, npc_card)
 
 
