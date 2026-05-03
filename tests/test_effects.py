@@ -1094,6 +1094,74 @@ def test_swap_opponent_effect_noops_when_opponent_hand_is_empty():
     assert state.npc.hand == []
 
 
+def test_tutor_play_effect_swaps_battle_card_with_selected_deck_card():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor_play", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    d1 = Card("d1", "d1", "でっき1", Janken.ROCK, 2, None)
+    d2 = Card("d2", "d2", "でっき2", Janken.SCISSORS, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[reika], deck=[d1, d2]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, reika, npc_card)
+    state = resume_round_effect(state, choice=d2.id)
+
+    assert state.current_battle.player_card == d2
+    assert state.player.deck == [d1, reika]
+
+
+def test_tutor_play_effect_can_skip():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor_play", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    d1 = Card("d1", "d1", "でっき1", Janken.ROCK, 2, None)
+    state = GameState(
+        player=PlayerState(hand=[reika], deck=[d1]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, reika, npc_card)
+    state = resume_round_effect(state, choice="skip")
+
+    assert state.current_battle.player_card == reika
+    assert state.player.deck == [d1]
+
+
+def test_tutor_play_effect_noops_when_deck_is_empty():
+    reika = Card(
+        "card_48",
+        "麗花",
+        "れいか",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.TUTOR_PLAY, "tutor_play", None),
+    )
+    npc_card = Card("n_battle", "n_battle", "えぬ場", Janken.PAPER, 10, None)
+    state = GameState(
+        player=PlayerState(hand=[reika]),
+        npc=PlayerState(hand=[npc_card]),
+    )
+
+    state = resolve_round(state, reika, npc_card)
+
+    assert state.pending_effect_context is None
+    assert reika in state.player.discard
+
+
 def test_draw_effect_draws_two_cards_for_both_sides():
     emily = Card(
         "card_20",

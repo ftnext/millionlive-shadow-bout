@@ -495,6 +495,37 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, ",".join(ordered_ids))
         return
 
+    if ctx.effect == "tutor_play":
+        mode = st.radio(
+            "麗花の効果",
+            ["activate", "skip"],
+            format_func=lambda value: {
+                "activate": "発動する（このカードを山札に戻し、山札から1枚を場に出す）",
+                "skip": "発動しない",
+            }[value],
+            horizontal=True,
+        )
+        if mode == "skip":
+            if st.button("発動しない", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        options, labels = card_id_options(player.deck)
+        if not options:
+            st.info("山札がないため発動できません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        choice = st.selectbox(
+            "場に出す山札のカード",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button("このカードを場に出す", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
     st.info("この効果は追加の入力なしで解決します。")
     if st.button("次へ", type="primary", use_container_width=True):
         submit_effect_choice(game_state, None)

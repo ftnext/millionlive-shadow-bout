@@ -388,6 +388,48 @@ def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameSta
     return _finish_interactive_effect(state, "-> ジュリアの効果: 勝敗判定をスキップ")
 
 
+def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> GameState:
+    if not choice or choice == "skip":
+        return _finish_interactive_effect(state, "-> 麗花の効果: 発動しない")
+
+    p_state = get_player_state(state, side)
+    if not p_state.deck:
+        return _finish_interactive_effect(
+            state, "-> 麗花の効果: 山札がないため発動できない"
+        )
+
+    source_card = (
+        state.current_battle.player_card
+        if side == Side.PLAYER
+        else state.current_battle.npc_card
+    )
+    if source_card is None:
+        return _finish_interactive_effect(
+            state, "-> 麗花の効果: 場のカードがないため発動できない"
+        )
+
+    target = _find_card(p_state.deck, choice)
+    if target is None:
+        return _finish_interactive_effect(
+            state, "-> 麗花の効果: 山札から選べなかったため発動しない"
+        )
+
+    new_deck = [card for card in p_state.deck if card.id != target.id] + [source_card]
+    state = update_player(state, side, deck=new_deck)
+
+    res = state.current_battle
+    if side == Side.PLAYER:
+        new_res = replace(res, player_card=target)
+    else:
+        new_res = replace(res, npc_card=target)
+
+    state = replace(state, current_battle=new_res)
+    return _finish_interactive_effect(
+        state,
+        f"-> 麗花の効果: {source_card.name}を山札に戻し、{target.name}を場に出した",
+    )
+
+
 def resume_pending_effect(state: GameState, choice: str | None = None) -> GameState:
     ctx = state.pending_effect_context
     if not ctx:
@@ -412,6 +454,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_reorder(state, side, choice)
     if ctx.effect == "choose_multiple":
         return _resume_choose_multiple(state, side, choice)
+    if ctx.effect == "tutor_play":
+        return _resume_tutor_play(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -1160,4 +1204,25 @@ def effect_curse(state: GameState, side: Side, card: Card) -> GameState:
         state,
         battle_log=state.battle_log
         + [f"{card.name}の効果発動: 相手の次の出し札を公開"],
+    )
+
+
+@register("tutor_play")
+def effect_tutor_play(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    if not p_state.deck:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 山札がないため不発"],
+        )
+
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="tutor_play")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 山札から場に出すカード選択待機中..."],
     )

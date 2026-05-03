@@ -724,6 +724,13 @@ def _choose_npc_pending_effect(
             choices.append("draw_debuff")
         return ",".join(choices) if choices else None
 
+    if ctx.effect == "tutor_play":
+        if not npc.deck:
+            return "skip"
+        if source_card and not npc_strategy.should_activate(source_card, state):
+            return "skip"
+        return npc_strategy.select_target(npc.deck, state).id
+
     return None
 
 
