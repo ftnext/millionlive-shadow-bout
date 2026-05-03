@@ -166,6 +166,10 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
         if choice != "activate":
             return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
         opp_side = get_opponent_side(side)
+        if _is_blocked_by_immune(state, side, opp_side):
+            return _finish_interactive_effect(
+                state, "-> 可憐の効果: 相手のimmuneにより無効"
+            )
         state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
         return _finish_interactive_effect(
             state, "-> 可憐の効果: 相手は2ラウンドの間、出し札を公開"

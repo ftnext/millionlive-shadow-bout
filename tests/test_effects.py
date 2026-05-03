@@ -1624,3 +1624,36 @@ def test_immune_blocks_steal_hand_and_reveal_and_curse():
     )
     state = resolve_round(state, emily, curse)
     assert state.player.must_reveal_played_card is False
+
+
+def test_immune_blocks_karen_choose_activate_effect():
+    emily = Card(
+        "card_32",
+        "エミリー",
+        "えみりー",
+        Janken.ROCK,
+        13,
+        Effect(EffectType.IMMUNE, "immune", None),
+    )
+    karen = Card(
+        "card_45",
+        "可憐",
+        "かれん",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.CHOOSE, "choose", None),
+    )
+
+    state = GameState(
+        player=PlayerState(hand=[emily]),
+        npc=PlayerState(hand=[karen]),
+    )
+
+    state = resolve_round(state, emily, karen)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.side == Side.NPC
+
+    state = resume_round_effect(state, choice="activate")
+
+    assert state.phase == Phase.REVEAL
+    assert state.player.must_reveal_played_card_rounds == 0
