@@ -193,6 +193,29 @@ def _resume_swap(state: GameState, side: Side, choice: str | None) -> GameState:
     )
 
 
+def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameState:
+    p_state = get_player_state(state, side)
+    if not p_state.discard:
+        return _finish_interactive_effect(state, "-> 風花の効果: 回収できる捨札がない")
+
+    target = _find_card(p_state.discard, choice)
+    if target is None:
+        return _finish_interactive_effect(state, "-> 風花の効果: 回収しない")
+
+    penalty = -3
+    new_discard = [card for card in p_state.discard if card.id != target.id]
+    state = update_player(
+        state,
+        side,
+        hand=p_state.hand + [target],
+        discard=new_discard,
+        point_modifier=p_state.point_modifier + penalty,
+    )
+    return _finish_interactive_effect(
+        state, f"-> 風花の効果: {target.name}を回収し、ポイント{penalty}"
+    )
+
+
 def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameState:
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
@@ -235,6 +258,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_swap(state, side, choice)
     if ctx.effect == "removal":
         return _resume_removal(state, side, choice)
+    if ctx.effect == "salvage":
+        return _resume_salvage(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -823,6 +848,18 @@ def effect_removal(state: GameState, side: Side, card: Card) -> GameState:
     )
     return replace(
         state, battle_log=state.battle_log + [f"{card.name}の効果発動: 発動待機中..."]
+    )
+
+
+@register("salvage")
+def effect_salvage(state: GameState, side: Side, card: Card) -> GameState:
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="salvage")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 回収選択待機中..."],
     )
 
 
