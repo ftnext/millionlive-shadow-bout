@@ -730,6 +730,16 @@ def _choose_npc_pending_effect(
             choices.append("draw_debuff")
         return ",".join(choices) if choices else None
 
+    if ctx.effect == "debuff_counterable":
+        if not npc.hand:
+            return "skip"
+        if (
+            source_card
+            and npc_strategy.choose_effect(["counter", "skip"], state) == "counter"
+        ):
+            return npc_strategy.select_target(npc.hand, state).id
+        return "skip"
+
     return None
 
 

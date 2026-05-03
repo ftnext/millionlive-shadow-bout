@@ -30,6 +30,7 @@ CARD_IDS = [
     "card_25",
     "card_15",
     "card_38",
+    "card_33",
     "card_02",
     "card_08",
     "card_06",
@@ -346,6 +347,37 @@ def render_pending_effect_form(game_state):
             use_container_width=True,
         ):
             submit_effect_choice(game_state, ",".join(selected))
+        return
+
+    if ctx.effect == "debuff_counterable":
+        if not player.hand:
+            st.info("捨てられる手札がないため無効化できません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        mode = st.radio(
+            "志保の効果",
+            ["counter", "skip"],
+            format_func=lambda value: {
+                "counter": "手札1枚を捨て札にして無効化する",
+                "skip": "無効化しない",
+            }[value],
+            horizontal=True,
+        )
+        if mode == "skip":
+            if st.button("無効化しない", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, "skip")
+            return
+
+        options, labels = card_id_options(player.hand)
+        choice = st.selectbox(
+            "捨て札にする手札",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button("無効化する", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
         return
 
     if ctx.effect == "search_and_swap":

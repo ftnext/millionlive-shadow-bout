@@ -1450,6 +1450,86 @@ def test_debuff_kotoha_reduces_by_opponent_hand_count():
     assert state.current_battle.player_point == 13
 
 
+def test_debuff_counterable_applies_debuff_when_opponent_skips_counter():
+    shiho = Card(
+        "card_33",
+        "志保",
+        "しほ",
+        Janken.ROCK,
+        11,
+        Effect(EffectType.DEBUFF_COUNTERABLE, "counterable -5", -5),
+    )
+    opponent = Card("op", "opponent", "おざー", Janken.ROCK, 14, None)
+    extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1, None)
+    state = GameState(
+        player=PlayerState(hand=[shiho]),
+        npc=PlayerState(hand=[opponent, extra]),
+    )
+
+    state = resolve_round(state, shiho, opponent)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.side == Side.NPC
+
+    state = resume_round_effect(state, choice="skip")
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 11
+    assert state.current_battle.npc_point == 9
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.npc.hand == [extra]
+
+
+def test_debuff_counterable_discards_one_hand_card_and_negates_debuff():
+    shiho = Card(
+        "card_33",
+        "志保",
+        "しほ",
+        Janken.ROCK,
+        11,
+        Effect(EffectType.DEBUFF_COUNTERABLE, "counterable -5", -5),
+    )
+    opponent = Card("op", "opponent", "おざー", Janken.ROCK, 14, None)
+    extra = Card("n_extra", "n_extra", "ん", Janken.PAPER, 1, None)
+    state = GameState(
+        player=PlayerState(hand=[shiho]),
+        npc=PlayerState(hand=[opponent, extra]),
+    )
+
+    state = resolve_round(state, shiho, opponent)
+    state = resume_round_effect(state, choice=extra.id)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.player_point == 11
+    assert state.current_battle.npc_point == 14
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.npc.hand == []
+    assert state.npc.discard == [extra, opponent]
+
+
+def test_debuff_counterable_applies_debuff_when_opponent_has_no_hand():
+    shiho = Card(
+        "card_33",
+        "志保",
+        "しほ",
+        Janken.ROCK,
+        11,
+        Effect(EffectType.DEBUFF_COUNTERABLE, "counterable -5", -5),
+    )
+    opponent = Card("op", "opponent", "おざー", Janken.ROCK, 14, None)
+    state = GameState(
+        player=PlayerState(hand=[shiho]),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, shiho, opponent)
+
+    assert state.phase == Phase.REVEAL
+    assert state.pending_effect_context is None
+    assert state.current_battle.player_point == 11
+    assert state.current_battle.npc_point == 9
+    assert state.current_battle.outcome == RoundOutcome.WIN
+
+
 def test_set_point_azusa_sets_opponent_point_to_zero():
     azusa = Card(
         "card_10",
