@@ -131,6 +131,11 @@ def submit_effect_choice(game_state, choice):
     before_logs = game_state.battle_log
     state = resume_round_effect_stepwise(game_state, choice)
     state = resolve_npc_pending_effects_stepwise(state, st.session_state.npc_strategy)
+    if (
+        game_state.pending_effect_context
+        and game_state.pending_effect_context.effect == "reorder"
+    ):
+        clear_reorder_widget_state()
     queue_effect_toasts(before_logs, state.battle_log)
     st.session_state.game_state = state
     st.rerun()
@@ -168,6 +173,12 @@ def show_pending_toasts():
         st.toast(message, icon="✨")
     if pending_toasts:
         st.session_state.pending_toasts = []
+
+
+def clear_reorder_widget_state():
+    for key in list(st.session_state.keys()):
+        if key.startswith("reorder_deck_cards_"):
+            del st.session_state[key]
 
 
 def side_label(side):
@@ -385,6 +396,35 @@ def render_pending_effect_form(game_state):
             submit_effect_choice(game_state, choice)
         return
 
+    if ctx.effect == "reorder":
+        options, labels = card_id_options(player.deck)
+        if len(options) <= 1:
+            st.info("並び替える山札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        reorder_key = f"reorder_deck_cards_{game_state.round_number}_{ctx.card_id}_{ctx.side.value}"
+        ordered_ids = st.multiselect(
+            "山札の上から順にカードを選択",
+            options,
+            default=options,
+            format_func=lambda card_id: labels[card_id],
+            max_selections=len(options),
+            key=reorder_key,
+        )
+        is_ready = len(ordered_ids) == len(options)
+        if not is_ready:
+            st.caption("山札の全カードを順番どおりに選択してください。")
+        if st.button(
+            "この順番にする",
+            type="primary",
+            disabled=not is_ready,
+            use_container_width=True,
+        ):
+            submit_effect_choice(game_state, ",".join(ordered_ids))
+        return
+
     st.info("この効果は追加の入力なしで解決します。")
     if st.button("次へ", type="primary", use_container_width=True):
         submit_effect_choice(game_state, None)
@@ -419,6 +459,7 @@ def main():
             if st.button(
                 "シャドウバウト・エンゲージ", type="primary", use_container_width=True
             ):
+                clear_reorder_widget_state()
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
@@ -616,6 +657,7 @@ def main():
                 st.warning("🤝 引き分けです！")
 
             if st.button("もう一度遊ぶ", use_container_width=True):
+                clear_reorder_widget_state()
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()

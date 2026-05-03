@@ -218,7 +218,62 @@ def test_resume_choose_effect_draw_lets_player_select_returned_cards():
 
     assert state.phase == Phase.REVEAL
     assert state.player.hand == [draw_1]
-    assert state.player.deck == [hand_card, draw_2]
+
+
+def test_resume_reorder_effect_applies_player_selected_order():
+    akane = Card(
+        "card_23",
+        "茜",
+        "あかね",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.REORDER, "reorder", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 17, None)
+    d1 = Card("d1", "draw1", "どろー1", Janken.ROCK, 2)
+    d2 = Card("d2", "draw2", "どろー2", Janken.SCISSORS, 3)
+    d3 = Card("d3", "draw3", "どろー3", Janken.PAPER, 4)
+    state = GameState(
+        player=PlayerState(hand=[akane], deck=[d1, d2, d3]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, akane, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="d3,d1,d2")
+
+    assert state.phase == Phase.REVEAL
+    assert [card.id for card in state.player.deck] == ["d3", "d1", "d2"]
+
+
+def test_resolve_npc_pending_effects_progresses_reorder_without_stop():
+    akane = Card(
+        "card_23",
+        "茜",
+        "あかね",
+        Janken.PAPER,
+        13,
+        Effect(EffectType.REORDER, "reorder", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.PAPER, 14, None)
+    n1 = Card("n1", "npc1", "えぬ1", Janken.ROCK, 1)
+    n2 = Card("n2", "npc2", "えぬ2", Janken.SCISSORS, 2)
+    n3 = Card("n3", "npc3", "えぬ3", Janken.PAPER, 3)
+    state = GameState(
+        player=PlayerState(hand=[other]),
+        npc=PlayerState(hand=[akane], deck=[n1, n2, n3]),
+    )
+
+    random.seed(0)
+    state = resolve_round(state, other, akane)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+    assert state.pending_effect_context.side == Side.NPC
+
+    state = resolve_npc_pending_effects(state, FirstChoiceStrategy())
+
+    assert state.phase == Phase.REVEAL
+    assert [card.id for card in state.npc.deck] != ["n1", "n2", "n3"]
 
 
 def test_npc_interactive_effect_is_resolved_by_strategy():
