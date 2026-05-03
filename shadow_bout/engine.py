@@ -293,6 +293,28 @@ def set_battle_cards_as_played(
     return replace(game_state, player=new_player, npc=new_npc)
 
 
+def apply_must_reveal_played_card(
+    game_state: GameState, player_card: Card, npc_card: Card
+) -> GameState:
+    revealed_cards: list[Card] = []
+    revealed_side: Side | None = None
+
+    if game_state.player.must_reveal_played_card:
+        revealed_cards.append(player_card)
+        revealed_side = Side.PLAYER
+    if game_state.npc.must_reveal_played_card:
+        revealed_cards.append(npc_card)
+        revealed_side = Side.NPC if revealed_side is None else None
+
+    return replace(
+        game_state,
+        player=replace(game_state.player, must_reveal_played_card=False),
+        npc=replace(game_state.npc, must_reveal_played_card=False),
+        revealed_this_round=revealed_cards or None,
+        revealed_this_round_side=revealed_side,
+    )
+
+
 def init_game(deck: list[Card]) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。"""
     p_deck = list(deck)
@@ -382,6 +404,7 @@ def resolve_round(
     game_state: GameState, player_card: Card, npc_card: Card
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
+    game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
     j_res = judge_janken(player_card, npc_card)
 
     player_point = None
@@ -456,6 +479,7 @@ def resolve_round_stepwise(
     game_state: GameState, player_card: Card, npc_card: Card
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
+    game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
     j_res = judge_janken(player_card, npc_card)
 
     player_point = None

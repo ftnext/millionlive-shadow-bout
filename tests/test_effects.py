@@ -320,6 +320,26 @@ def test_mizuki_buff_dynamic_counts_remaining_hand_only():
     assert state.current_battle.outcome == RoundOutcome.WIN
 
 
+def test_curse_sets_must_reveal_state_on_opponent():
+    curse = Card(
+        "c51",
+        "呪い",
+        "のろい",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.CURSE, "curse", None),
+    )
+    other = Card("cx", "other", "おざー", Janken.ROCK, 9, None)
+    state = GameState(
+        player=PlayerState(hand=[curse]),
+        npc=PlayerState(hand=[other]),
+    )
+
+    state = resolve_round(state, curse, other)
+
+    assert state.npc.must_reveal_played_card is True
+
+
 def test_ami_restart_does_not_duplicate_played_cards():
     ami = Card(
         "c11",

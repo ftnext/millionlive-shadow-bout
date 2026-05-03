@@ -7,6 +7,7 @@ from shadow_bout.effect_utils import (
     clear_forced_card_id,
     get_opponent_side,
     get_player_state,
+    set_must_reveal_played_card,
     update_player,
 )
 from shadow_bout.models import (
@@ -525,4 +526,15 @@ def effect_removal(state: GameState, side: Side, card: Card) -> GameState:
     )
     return replace(
         state, battle_log=state.battle_log + [f"{card.name}の効果発動: 発動待機中..."]
+    )
+
+
+@register("curse")
+def effect_curse(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    state = set_must_reveal_played_card(state, opp_side, True)
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手の次の出し札を公開"],
     )
