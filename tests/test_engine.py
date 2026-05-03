@@ -7,6 +7,7 @@ from shadow_bout.engine import (
     init_game,
     judge_janken,
     proceed_to_next,
+    resolve_round,
     select_card,
 )
 from shadow_bout.models import (
@@ -271,6 +272,21 @@ def test_proceed_to_next_resets_round_local_state(mock_cards):
     assert new_state.npc.point_modifier == 0
     assert new_state.npc.effect_negated is False
     assert new_state.npc.revealed_card_ids == frozenset({p_card.id})
+
+
+def test_resolve_round_consumes_must_reveal_played_card_and_records_reveal(mock_cards):
+    p1, n1, _, _ = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p1]),
+        npc=PlayerState(hand=[n1], must_reveal_played_card=True),
+        phase=Phase.SELECT,
+    )
+
+    next_state = resolve_round(state, p1, n1)
+
+    assert next_state.npc.must_reveal_played_card is False
+    assert next_state.revealed_this_round == [n1]
+    assert next_state.revealed_this_round_side == Side.NPC
 
 
 def test_proceed_to_next_resolves_remaining_forfeit_rounds(mock_cards):
