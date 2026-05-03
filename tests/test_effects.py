@@ -568,3 +568,34 @@ def test_conditional_debuff_next_does_not_apply_to_wildcard():
     assert next_state.player.conditional_point_modifier_non_wildcard == -3
     assert next_state.player.point_modifier == 0
     assert calculate_effective_point(wildcard, next_state.player) == wildcard.base_point
+
+
+def test_debuff_persistent_applies_current_and_next_round_only():
+    hinata = Card(
+        "c35",
+        "ひなた",
+        "ひなた",
+        Janken.ROCK,
+        10,
+        Effect(EffectType.DEBUFF_PERSISTENT, "this and next -2", -2),
+    )
+    player_card = Card("p1", "p1", "ぴー1", Janken.ROCK, 10, None)
+    p_next = Card("p2", "p2", "ぴー2", Janken.PAPER, 10, None)
+    n_next = Card("n2", "n2", "えぬ2", Janken.SCISSORS, 10, None)
+    state = GameState(
+        player=PlayerState(hand=[player_card, p_next]),
+        npc=PlayerState(hand=[hinata, n_next]),
+    )
+
+    state = resolve_round(state, player_card, hinata)
+    assert state.player.point_modifier == -2
+    assert state.player.persistent_point_effects == (-2,)
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.player.point_modifier == -2
+    assert next_state.player.persistent_point_effects == ()
+
+    third_state = proceed_to_next(next_state)
+    assert third_state.round_number == 3
+    assert third_state.player.point_modifier == 0

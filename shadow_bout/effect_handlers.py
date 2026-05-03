@@ -272,6 +272,28 @@ def effect_conditional_debuff_next(
     )
 
 
+@register("debuff_persistent")
+def effect_debuff_persistent(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+    debuff = int(card.effect.value or 0)
+    state = update_player(
+        state, opp_side, point_modifier=opp_state.point_modifier + debuff
+    )
+    # 「このターンと次のターン」: 現ターンは即時適用し、次ターン分を継続効果として保持
+    updated_opp_state = get_player_state(state, opp_side)
+    state = update_player(
+        state,
+        opp_side,
+        persistent_point_effects=updated_opp_state.persistent_point_effects + (debuff,),
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手のポイントをこのターンと次ターン{debuff:+d}"],
+    )
+
+
 @register("negate")
 def effect_negate(state: GameState, side: Side, card: Card) -> GameState:
     opp_side = get_opponent_side(side)

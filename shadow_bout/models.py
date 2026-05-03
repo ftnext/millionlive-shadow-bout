@@ -121,6 +121,7 @@ class PlayerState:
     banned_card_ids: frozenset[str] = frozenset()
     forced_card_id: str | None = None
     must_reveal_played_card: bool = False
+    persistent_point_effects: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
