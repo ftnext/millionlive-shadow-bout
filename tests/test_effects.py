@@ -1162,7 +1162,8 @@ def test_tutor_play_effect_uses_effect_source_even_if_battle_card_changes(monkey
 
     assert state.current_battle.player_card == d2
     assert reika in state.player.deck
-    assert kana in state.player.hand
+    assert state.player.hand.count(kana) == 1
+    assert all(card.id != reika.id for card in state.player.hand)
 
 
 def test_tutor_play_effect_can_skip():

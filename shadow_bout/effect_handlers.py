@@ -411,9 +411,34 @@ def _resume_tutor_play(state: GameState, side: Side, choice: str | None) -> Game
             state, "-> 麗花の効果: 山札から選べなかったため発動しない"
         )
 
-    new_deck = [card for card in p_state.deck if card.id != target.id] + [source_card]
+    current_battle_card = (
+        state.current_battle.player_card
+        if side == Side.PLAYER
+        else state.current_battle.npc_card
+    )
+    carry_hand = [c for c in p_state.hand if c.id != source_card.id]
+    carry_discard = [c for c in p_state.discard if c.id != source_card.id]
+    carry_won = [c for c in p_state.won_cards if c.id != source_card.id]
+    carry_draw_stock = [c for c in p_state.draw_stock if c.id != source_card.id]
+    if current_battle_card and current_battle_card.id not in {
+        source_card.id,
+        target.id,
+    }:
+        carry_hand = carry_hand + [current_battle_card]
+
+    new_deck = [
+        card for card in p_state.deck if card.id not in {target.id, source_card.id}
+    ] + [source_card]
     random.shuffle(new_deck)
-    state = update_player(state, side, deck=new_deck)
+    state = update_player(
+        state,
+        side,
+        hand=carry_hand,
+        deck=new_deck,
+        discard=carry_discard,
+        won_cards=carry_won,
+        draw_stock=carry_draw_stock,
+    )
 
     res = state.current_battle
     if side == Side.PLAYER:
