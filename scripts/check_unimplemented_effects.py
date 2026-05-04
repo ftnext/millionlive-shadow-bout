@@ -9,6 +9,17 @@ REGISTER_PATTERN = re.compile(r'@register\("([^"]+)"\)')
 
 
 def extract_registered_types(effect_handlers_path: Path) -> set[str]:
+    if effect_handlers_path.is_dir():
+        contents = [
+            path.read_text(encoding="utf-8")
+            for path in effect_handlers_path.glob("*.py")
+        ]
+        return {
+            effect_type
+            for content in contents
+            for effect_type in REGISTER_PATTERN.findall(content)
+        }
+
     content = effect_handlers_path.read_text(encoding="utf-8")
     return set(REGISTER_PATTERN.findall(content))
 
@@ -49,7 +60,7 @@ def find_unimplemented_cards(
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     cards_path = repo_root / "cards.jsonl"
-    effect_handlers_path = repo_root / "shadow_bout" / "effect_handlers.py"
+    effect_handlers_path = repo_root / "shadow_bout" / "effect_handlers"
 
     implemented_types = extract_registered_types(effect_handlers_path)
     cards = load_cards(cards_path)
