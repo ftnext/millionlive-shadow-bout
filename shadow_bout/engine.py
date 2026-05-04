@@ -122,7 +122,13 @@ def apply_battle_result(game_state: GameState, result: BattleResult) -> GameStat
         draw_stock=new_n_stock,
     )
 
-    return replace(game_state, player=new_player, npc=new_npc, current_battle=result)
+    return replace(
+        game_state,
+        player=new_player,
+        npc=new_npc,
+        current_battle=result,
+        completed_battles=game_state.completed_battles + (result,),
+    )
 
 
 def check_forfeit(player: PlayerState, npc: PlayerState) -> Side | None:

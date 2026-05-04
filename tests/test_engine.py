@@ -316,6 +316,38 @@ def test_apply_battle_result_npc_win_moves_cards_by_rule(mock_cards):
     assert new_state.npc.draw_stock == []
 
 
+def test_apply_battle_result_appends_to_completed_battles(mock_cards):
+    p_card, n_card, p_stock, n_stock = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p_card], draw_stock=[p_stock]),
+        npc=PlayerState(hand=[n_card], draw_stock=[n_stock]),
+    )
+    win_result = BattleResult(
+        outcome=RoundOutcome.WIN,
+        winning_side=Side.PLAYER,
+        player_card=p_card,
+        npc_card=n_card,
+        janken_result=JankenResult.WIN,
+    )
+
+    after_win = apply_battle_result(state, win_result)
+
+    assert state.completed_battles == ()
+    assert after_win.completed_battles == (win_result,)
+
+    even_result = BattleResult(
+        outcome=RoundOutcome.EVEN,
+        winning_side=None,
+        player_card=p_stock,
+        npc_card=n_stock,
+        janken_result=JankenResult.DRAW,
+    )
+    after_even = apply_battle_result(after_win, even_result)
+
+    assert after_even.completed_battles == (win_result, even_result)
+    assert after_even.current_battle == even_result
+
+
 def test_proceed_to_next_resets_round_local_state(mock_cards):
     p_card, n_card, _, revealed_card = mock_cards
     battle = BattleResult(

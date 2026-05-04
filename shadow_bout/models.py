@@ -174,6 +174,7 @@ class GameState:
     phase: Phase = Phase.START
     battle_log: list[str] = field(default_factory=list)
     current_battle: BattleResult | None = None
+    completed_battles: tuple[BattleResult, ...] = ()
     last_restart_round: int | None = None
     effect_step: int = 0
     pending_effect_context: PendingEffectContext | None = None
