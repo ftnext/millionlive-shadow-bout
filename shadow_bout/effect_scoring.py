@@ -136,4 +136,33 @@ def resolve_post_effect_points(state: GameState) -> GameState:
                 + [f"効果発動: 勝利したため{len(drawn)}枚ドロー"],
             )
 
+    for side, bonus in state.pending_next_round_buff_on_win:
+        if side != winning_side:
+            continue
+
+        if side == Side.PLAYER:
+            updated_state = replace(
+                updated_state,
+                player=replace(
+                    updated_state.player,
+                    next_round_point_modifier=(
+                        updated_state.player.next_round_point_modifier + bonus
+                    ),
+                ),
+                battle_log=updated_state.battle_log
+                + [f"効果発動: 勝利したため次ラウンドのポイント{bonus:+d}"],
+            )
+        else:
+            updated_state = replace(
+                updated_state,
+                npc=replace(
+                    updated_state.npc,
+                    next_round_point_modifier=(
+                        updated_state.npc.next_round_point_modifier + bonus
+                    ),
+                ),
+                battle_log=updated_state.battle_log
+                + [f"効果発動: 勝利したため次ラウンドのポイント{bonus:+d}"],
+            )
+
     return updated_state

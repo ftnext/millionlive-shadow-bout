@@ -828,6 +828,28 @@ def effect_buff_next(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("buff_snowball")
+def effect_buff_snowball(state: GameState, side: Side, card: Card) -> GameState:
+    p_state = get_player_state(state, side)
+    bonus = int(card.effect.value or 0)
+    state = update_player(
+        state,
+        side,
+        point_modifier=p_state.point_modifier + bonus,
+    )
+    return replace(
+        state,
+        pending_next_round_buff_on_win=(
+            state.pending_next_round_buff_on_win + ((side, bonus),)
+        ),
+        battle_log=state.battle_log
+        + [
+            f"{card.name}の効果発動: この勝負のポイント{bonus:+d}、"
+            f"勝利時に次ラウンドのポイント{bonus:+d}"
+        ],
+    )
+
+
 @register("buff_scaling")
 def effect_buff_scaling(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -1356,6 +1378,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         last_restart_round=state.round_number,
         pending_conditional_debuff_on_loss=(),
         pending_draw_on_win=(),
+        pending_next_round_buff_on_win=(),
         point_match_effects=(),
     )
 

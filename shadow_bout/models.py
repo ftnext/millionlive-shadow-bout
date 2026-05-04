@@ -174,4 +174,5 @@ class GameState:
     revealed_this_round_side: Side | None = None
     pending_conditional_debuff_on_loss: tuple[tuple[Side, int], ...] = ()
     pending_draw_on_win: tuple[tuple[Side, int], ...] = ()
+    pending_next_round_buff_on_win: tuple[tuple[Side, int], ...] = ()
     point_match_effects: tuple[PointMatchEffect, ...] = ()
