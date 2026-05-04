@@ -1,3 +1,4 @@
+import json
 import os
 from html import escape
 from pathlib import Path
@@ -149,6 +150,70 @@ def render_footer_links():
         - [もっと知る（ミリシタをダウンロード）](https://millionlive-theaterdays.idolmaster-official.jp/)
         - [このアプリのソースコード](https://github.com/ftnext/millionlive-shadow-bout)
         """
+    )
+
+
+_ROUND_OUTCOME_LABEL = {
+    RoundOutcome.WIN: "勝ち",
+    RoundOutcome.LOSE: "負け",
+    RoundOutcome.EVEN: "引き分け",
+}
+
+
+def format_share_round_lines(game_state):
+    lines = []
+    for record in game_state.completed_rounds:
+        n = record.round_number
+        if record.battle is not None:
+            res = record.battle
+            p_icon = JANKEN_ICONS.get(res.player_card.janken, "")
+            n_icon = JANKEN_ICONS.get(res.npc_card.janken, "")
+            lines.append(
+                f"R{n}: {res.player_card.name}{p_icon} vs "
+                f"{res.npc_card.name}{n_icon} → {_ROUND_OUTCOME_LABEL[res.outcome]}"
+            )
+        elif record.forfeiting_side == Side.PLAYER:
+            lines.append(f"R{n}: あなたの不戦敗 → 負け")
+        elif record.forfeiting_side == Side.NPC:
+            lines.append(f"R{n}: NPCの不戦敗 → 勝ち")
+    return lines
+
+
+def build_share_text(game_state, p_score, n_score, outcome_text):
+    header = f"陰界戦戯でNPCに{outcome_text}"
+    rounds = format_share_round_lines(game_state)
+    score = f"最終: あなた {p_score}pt / NPC {n_score}pt"
+    return "\n".join([header, *rounds, score])
+
+
+def render_share_button(game_state, p_score, n_score, outcome_text):
+    text = build_share_text(game_state, p_score, n_score, outcome_text)
+    text_json = json.dumps(text)
+    hashtags_json = json.dumps("陰界戦戯")
+    components.html(
+        f"""
+        <a id="tweetLink" href="#" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;padding:.5em 1em;
+                  background:#000;color:#fff;text-decoration:none;
+                  border-radius:9999px;font-weight:bold;font-size:14px;">
+            <svg viewBox="0 0 24 24" style="height:18px;fill:#fff;margin-right:8px;">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 5.96H5.078z"/>
+            </svg>
+            結果をXでポスト
+        </a>
+        <script>
+            (function() {{
+                const link = document.getElementById('tweetLink');
+                link.addEventListener('click', function() {{
+                    const text = encodeURIComponent({text_json});
+                    const url = encodeURIComponent(window.parent.location.href);
+                    const tags = encodeURIComponent({hashtags_json});
+                    this.href = `https://twitter.com/intent/tweet?text=${{text}}&url=${{url}}&hashtags=${{tags}}`;
+                }});
+            }})();
+        </script>
+        """,
+        height=55,
     )
 
 
@@ -1006,6 +1071,14 @@ def main():
                     st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
+
+            if p_score > n_score:
+                outcome_text = "勝ちました！"
+            elif p_score < n_score:
+                outcome_text = "負けました..."
+            else:
+                outcome_text = "引き分けました"
+            render_share_button(game_state, p_score, n_score, outcome_text)
 
     with col2:
         st.subheader("📜 バトルログ")

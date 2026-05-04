@@ -58,13 +58,13 @@ def _validate_required_hand(raw, deck_id_set: set[str], field_name: str) -> list
         raise ValueError(f"{field_name} must be a list of card ids")
     if len(raw) > 5:
         raise ValueError(f"{field_name} must have at most 5 entries")
-    if len(set(raw)) != len(raw):
-        raise ValueError(f"{field_name} must not contain duplicates")
     for card_id in raw:
         if not isinstance(card_id, str):
             raise ValueError(f"{field_name} entries must be strings")
         if card_id not in deck_id_set:
             raise ValueError(f"{field_name} contains unknown card id: {card_id}")
+    if len(set(raw)) != len(raw):
+        raise ValueError(f"{field_name} must not contain duplicates")
     return list(raw)
 
 

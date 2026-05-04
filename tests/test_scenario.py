@@ -90,6 +90,12 @@ def test_load_scenario_rejects_duplicate_hand(tmp_path):
         load_scenario(path, deck_card_ids=DECK_IDS)
 
 
+def test_load_scenario_rejects_non_string_hand_entry(tmp_path):
+    path = _write_scenario(tmp_path, {"player_hand": [{"id": "card_01"}]})
+    with pytest.raises(ValueError, match="must be strings"):
+        load_scenario(path, deck_card_ids=DECK_IDS)
+
+
 def test_load_scenario_rejects_too_many_rounds(tmp_path):
     path = _write_scenario(
         tmp_path,

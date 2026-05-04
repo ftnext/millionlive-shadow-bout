@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from shadow_bout.engine import (
@@ -14,6 +16,7 @@ from shadow_bout.models import (
     BattleJankenOverride,
     BattleResult,
     Card,
+    CompletedRound,
     Effect,
     EffectType,
     GameState,
@@ -319,6 +322,45 @@ def test_apply_battle_result_npc_win_moves_cards_by_rule(mock_cards):
     assert new_state.npc.draw_stock == []
 
 
+def test_apply_battle_result_appends_to_completed_rounds(mock_cards):
+    p_card, n_card, p_stock, n_stock = mock_cards
+    state = GameState(
+        player=PlayerState(hand=[p_card], draw_stock=[p_stock]),
+        npc=PlayerState(hand=[n_card], draw_stock=[n_stock]),
+        round_number=1,
+    )
+    win_result = BattleResult(
+        outcome=RoundOutcome.WIN,
+        winning_side=Side.PLAYER,
+        player_card=p_card,
+        npc_card=n_card,
+        janken_result=JankenResult.WIN,
+    )
+
+    after_win = apply_battle_result(state, win_result)
+
+    assert state.completed_rounds == ()
+    assert after_win.completed_rounds == (
+        CompletedRound(round_number=1, battle=win_result),
+    )
+
+    after_win = replace(after_win, round_number=2)
+    even_result = BattleResult(
+        outcome=RoundOutcome.EVEN,
+        winning_side=None,
+        player_card=p_stock,
+        npc_card=n_stock,
+        janken_result=JankenResult.DRAW,
+    )
+    after_even = apply_battle_result(after_win, even_result)
+
+    assert after_even.completed_rounds == (
+        CompletedRound(round_number=1, battle=win_result),
+        CompletedRound(round_number=2, battle=even_result),
+    )
+    assert after_even.current_battle == even_result
+
+
 def test_proceed_to_next_resets_round_local_state(mock_cards):
     p_card, n_card, _, revealed_card = mock_cards
     battle = BattleResult(
@@ -430,6 +472,11 @@ def test_proceed_to_next_resolves_remaining_forfeit_rounds(mock_cards):
         "R3: あなたは不戦敗。NPCが勝ち札を獲得。",
         "R4: あなたは不戦敗。NPCが勝ち札を獲得。",
     ]
+    assert new_state.completed_rounds == (
+        CompletedRound(round_number=2, forfeiting_side=Side.PLAYER),
+        CompletedRound(round_number=3, forfeiting_side=Side.PLAYER),
+        CompletedRound(round_number=4, forfeiting_side=Side.PLAYER),
+    )
 
 
 def test_proceed_to_next_ends_when_both_players_cannot_play(mock_cards):
