@@ -88,6 +88,15 @@ def resolve_post_effect_points(state: GameState) -> GameState:
             outcome = RoundOutcome.EVEN
             winning_side = None
 
+    win_condition_winner = state.win_condition_winner
+    if win_condition_winner is not None:
+        winning_side = win_condition_winner
+        outcome = (
+            RoundOutcome.WIN
+            if win_condition_winner == Side.PLAYER
+            else RoundOutcome.LOSE
+        )
+
     new_res = replace(
         res,
         outcome=outcome,
@@ -97,7 +106,10 @@ def resolve_post_effect_points(state: GameState) -> GameState:
         npc_point=n_point,
     )
 
-    if janken_result == JankenResult.DRAW:
+    if win_condition_winner is not None:
+        winner_name = "あなた" if win_condition_winner == Side.PLAYER else "NPC"
+        log_msg = f"効果解決後勝利条件: {winner_name}の勝ち！"
+    elif janken_result == JankenResult.DRAW:
         log_msg = f"効果解決後ポイント比較: あなた({p_point}) vs NPC({n_point}) -> "
         if outcome == RoundOutcome.WIN:
             log_msg += "あなたの勝ち！"
