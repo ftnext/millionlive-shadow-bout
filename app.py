@@ -1,4 +1,6 @@
+import os
 from html import escape
+from pathlib import Path
 from time import sleep
 
 import streamlit as st
@@ -10,16 +12,19 @@ from shadow_bout import (
     Phase,
     RandomStrategy,
     RoundOutcome,
+    ScriptedStrategy,
     Side,
     calculate_final_score,
     continue_round_effect_step,
     load_deck,
+    load_scenario,
     proceed_to_next,
     resolve_npc_pending_effects_stepwise,
     resume_round_effect_stepwise,
     select_card_stepwise,
     select_random_deck,
     start_game,
+    start_game_with_scenario,
 )
 from shadow_bout.effects import calculate_effective_point
 
@@ -51,6 +56,14 @@ WILDCARD_JANKEN_OPTIONS = {
     "チョキ": Janken.SCISSORS,
     "パー": Janken.PAPER,
 }
+WILDCARD_JANKEN_LABELS = {
+    Janken.ROCK: "グー",
+    Janken.SCISSORS: "チョキ",
+    Janken.PAPER: "パー",
+}
+
+DEV_MODE = os.environ.get("SHADOW_BOUT_DEV") == "1"
+SCENARIO_PATH = Path("dev_scenario.json")
 
 st.set_page_config(page_title="Shadow Bout v0.2", layout="wide")
 
@@ -195,6 +208,33 @@ def clear_reorder_widget_state():
 
 def side_label(side):
     return "あなた" if side == Side.PLAYER else "NPC"
+
+
+def _apply_scenario_preselect(game_state):
+    """シナリオモード時、各ラウンド最初のSELECT入場で1回だけプリセレクトを流し込む。"""
+    if st.session_state.get("game_mode") != "scenario":
+        return
+    scenario = st.session_state.get("scenario")
+    if scenario is None:
+        return
+    if st.session_state.get("_scenario_preselect_round") == game_state.round_number:
+        return
+    st.session_state._scenario_preselect_round = game_state.round_number
+
+    idx = game_state.round_number - 1
+    if not (0 <= idx < len(scenario.rounds)):
+        return
+    spec = scenario.rounds[idx]
+    if spec is None:
+        return
+    if spec.player_card_id and any(
+        c.id == spec.player_card_id for c in game_state.player.hand
+    ):
+        st.session_state.selected_card_id = spec.player_card_id
+    if spec.player_wildcard is not None:
+        st.session_state.wildcard_janken_label = WILDCARD_JANKEN_LABELS[
+            spec.player_wildcard
+        ]
 
 
 def render_effect_resolution_panel(game_state):
@@ -677,6 +717,7 @@ def main():
                 key="engage_fixed",
             ):
                 clear_reorder_widget_state()
+                st.session_state.pop("_scenario_preselect_round", None)
                 st.session_state.game_mode = "fixed"
                 st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
@@ -687,6 +728,7 @@ def main():
                 key="engage_random",
             ):
                 clear_reorder_widget_state()
+                st.session_state.pop("_scenario_preselect_round", None)
                 p_deck = select_random_deck(13)
                 n_deck = select_random_deck(13)
                 st.session_state.game_mode = "random"
@@ -695,6 +737,36 @@ def main():
                 st.session_state.game_state = start_game(p_deck, n_deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
+
+            if DEV_MODE:
+                st.markdown("---")
+                st.caption("開発用モード（SHADOW_BOUT_DEV=1）")
+                scenario_available = SCENARIO_PATH.exists()
+                if not scenario_available:
+                    st.caption(
+                        f"`{SCENARIO_PATH}` を配置するとシナリオエンゲージが有効化されます"
+                    )
+                if st.button(
+                    "シナリオでエンゲージ（開発用）",
+                    disabled=not scenario_available,
+                    use_container_width=True,
+                    key="engage_scenario",
+                ):
+                    try:
+                        scenario = load_scenario(SCENARIO_PATH, deck_card_ids=CARD_IDS)
+                    except (ValueError, OSError) as exc:
+                        st.error(f"シナリオの読み込みに失敗しました: {exc}")
+                    else:
+                        clear_reorder_widget_state()
+                        st.session_state.pop("_scenario_preselect_round", None)
+                        st.session_state.npc_strategy = ScriptedStrategy(scenario)
+                        st.session_state.scenario = scenario
+                        st.session_state.game_mode = "scenario"
+                        st.session_state.game_state = start_game_with_scenario(
+                            st.session_state.deck, scenario
+                        )
+                        st.session_state.selected_card_id = None
+                        st.rerun()
 
         elif game_state.phase in [
             Phase.SELECT,
@@ -832,6 +904,7 @@ def main():
                 render_effect_resolution_panel(game_state)
 
             elif game_state.phase == Phase.SELECT:
+                _apply_scenario_preselect(game_state)
                 st.markdown("---")
                 st.markdown("#### ── あなたの手札 ──")
                 hand = game_state.player.hand
@@ -918,10 +991,16 @@ def main():
 
             if st.button("もう一度遊ぶ", use_container_width=True):
                 clear_reorder_widget_state()
-                if st.session_state.get("game_mode") == "random":
+                st.session_state.pop("_scenario_preselect_round", None)
+                mode = st.session_state.get("game_mode")
+                if mode == "random":
                     st.session_state.game_state = start_game(
                         st.session_state.player_deck,
                         st.session_state.npc_deck,
+                    )
+                elif mode == "scenario":
+                    st.session_state.game_state = start_game_with_scenario(
+                        st.session_state.deck, st.session_state.scenario
                     )
                 else:
                     st.session_state.game_state = start_game(st.session_state.deck)

@@ -28,6 +28,7 @@ from shadow_bout.models import (
     Side,
 )
 from shadow_bout.npc import NpcStrategy
+from shadow_bout.scenario import Scenario
 
 JANKEN_ICONS = {
     Janken.ROCK: "✊",
@@ -409,12 +410,10 @@ def _choose_npc_wildcard_janken(
     if npc_card.janken != Janken.WILDCARD:
         return None
 
-    choose_effect = getattr(npc_strategy, "choose_effect", None)
-    if choose_effect is None:
-        return random.choice(WILDCARD_DECLARABLE_JANKENS)
-
     choices = [janken.value for janken in WILDCARD_DECLARABLE_JANKENS]
-    return _coerce_wildcard_janken(choose_effect(choices, game_state), Side.NPC)
+    return _coerce_wildcard_janken(
+        npc_strategy.declare_wildcard_janken(choices, game_state), Side.NPC
+    )
 
 
 def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
@@ -441,6 +440,44 @@ def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState
 
 def start_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
     state = init_game(deck, npc_deck)
+    return replace(state, phase=Phase.SELECT)
+
+
+def _arrange_with_required(deck: list[Card], required_ids: list[str]) -> list[Card]:
+    """deck をシャッフルした後、required_ids のカードを先頭へ集めて返す。"""
+    pool = list(deck)
+    random.shuffle(pool)
+    required: list[Card] = []
+    for card_id in required_ids:
+        idx = next((i for i, c in enumerate(pool) if c.id == card_id), None)
+        if idx is None:
+            raise ValueError(f"required card not found in deck: {card_id}")
+        required.append(pool.pop(idx))
+    return required + pool
+
+
+def init_game_with_required(
+    deck: list[Card],
+    *,
+    player_required_hand: list[str] | None = None,
+    npc_required_hand: list[str] | None = None,
+) -> GameState:
+    """deck をシャッフルし、各 required_hand を初期手札に確実に含めて配布する。"""
+    p_pool = _arrange_with_required(deck, player_required_hand or [])
+    n_pool = _arrange_with_required(deck, npc_required_hand or [])
+    return GameState(
+        player=PlayerState(hand=p_pool[:5], deck=p_pool[5:]),
+        npc=PlayerState(hand=n_pool[:5], deck=n_pool[5:]),
+    )
+
+
+def start_game_with_scenario(deck: list[Card], scenario: Scenario) -> GameState:
+    """シナリオの required_hand を満たして Phase.SELECT で開始する。"""
+    state = init_game_with_required(
+        deck,
+        player_required_hand=list(scenario.player_hand_required),
+        npc_required_hand=list(scenario.npc_hand_required),
+    )
     return replace(state, phase=Phase.SELECT)
 
 
