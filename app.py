@@ -2,6 +2,7 @@ from html import escape
 from time import sleep
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from shadow_bout import (
     Janken,
@@ -714,7 +715,10 @@ def main():
             render_known_npc_hand(game_state)
 
             st.markdown("---")
-            st.markdown("#### ── 場 ──")
+            st.markdown(
+                "<div id='battle-field-anchor'></div>\n\n#### ── 場 ──",
+                unsafe_allow_html=True,
+            )
 
             battle_cols = st.columns([5, 2, 5])
             with battle_cols[0]:
@@ -787,6 +791,20 @@ def main():
 
             if game_state.phase == Phase.REVEAL:
                 res = game_state.current_battle
+                components.html(
+                    """
+                    <script>
+                      (function() {
+                        const doc = window.parent.document;
+                        const target = doc.getElementById('battle-field-anchor');
+                        if (target) {
+                          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      })();
+                    </script>
+                    """,
+                    height=0,
+                )
                 st.markdown("---")
                 if res.outcome == RoundOutcome.WIN:
                     st.balloons()
