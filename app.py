@@ -149,13 +149,20 @@ _ROUND_OUTCOME_LABEL = {
 
 def format_share_round_lines(game_state):
     lines = []
-    for i, res in enumerate(game_state.completed_battles, 1):
-        p_icon = JANKEN_ICONS.get(res.player_card.janken, "")
-        n_icon = JANKEN_ICONS.get(res.npc_card.janken, "")
-        lines.append(
-            f"R{i}: {res.player_card.name}{p_icon} vs "
-            f"{res.npc_card.name}{n_icon} → {_ROUND_OUTCOME_LABEL[res.outcome]}"
-        )
+    for record in game_state.completed_rounds:
+        n = record.round_number
+        if record.battle is not None:
+            res = record.battle
+            p_icon = JANKEN_ICONS.get(res.player_card.janken, "")
+            n_icon = JANKEN_ICONS.get(res.npc_card.janken, "")
+            lines.append(
+                f"R{n}: {res.player_card.name}{p_icon} vs "
+                f"{res.npc_card.name}{n_icon} → {_ROUND_OUTCOME_LABEL[res.outcome]}"
+            )
+        elif record.forfeiting_side == Side.PLAYER:
+            lines.append(f"R{n}: あなたの不戦敗 → 負け")
+        elif record.forfeiting_side == Side.NPC:
+            lines.append(f"R{n}: NPCの不戦敗 → 勝ち")
     return lines
 
 

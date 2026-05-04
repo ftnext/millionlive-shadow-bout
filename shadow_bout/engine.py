@@ -19,6 +19,7 @@ from shadow_bout.janken import judge_janken_values
 from shadow_bout.models import (
     BattleResult,
     Card,
+    CompletedRound,
     GameState,
     Janken,
     JankenResult,
@@ -122,12 +123,15 @@ def apply_battle_result(game_state: GameState, result: BattleResult) -> GameStat
         draw_stock=new_n_stock,
     )
 
+    completed = CompletedRound(
+        round_number=game_state.round_number, battle=result
+    )
     return replace(
         game_state,
         player=new_player,
         npc=new_npc,
         current_battle=result,
-        completed_battles=game_state.completed_battles + (result,),
+        completed_rounds=game_state.completed_rounds + (completed,),
     )
 
 
@@ -962,10 +966,14 @@ def proceed_to_next(game_state: GameState) -> GameState:
             return replace(round_state, phase=Phase.SELECT)
 
         game_state = apply_forfeit(round_state, forfeit_side)
+        forfeit_record = CompletedRound(
+            round_number=next_round, forfeiting_side=forfeit_side
+        )
         game_state = replace(
             game_state,
             battle_log=game_state.battle_log
             + [format_forfeit_log(next_round, forfeit_side)],
+            completed_rounds=game_state.completed_rounds + (forfeit_record,),
         )
         next_round += 1
 
