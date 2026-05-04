@@ -31,6 +31,7 @@ CARD_IDS = [
     "card_15",
     "card_38",
     "card_33",
+    "card_03",
     "card_02",
     "card_08",
     "card_06",
@@ -388,6 +389,39 @@ def render_pending_effect_form(game_state):
             format_func=lambda card_id: labels[card_id],
         )
         if st.button("無効化する", type="primary", use_container_width=True):
+            submit_effect_choice(game_state, choice)
+        return
+
+    if ctx.effect == "special":
+        opponent = game_state.npc if ctx.side == Side.PLAYER else game_state.player
+        if ctx.step == 0:
+            label = st.radio(
+                "美希の効果",
+                list(WILDCARD_JANKEN_OPTIONS),
+                horizontal=True,
+            )
+            if st.button("宣言する", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, WILDCARD_JANKEN_OPTIONS[label].value)
+            return
+
+        target_id = ctx.payload.get("revealed_card_id")
+        revealed = find_card_by_id(opponent.hand, target_id)
+        if revealed is not None:
+            st.write(f"確認したカード: **{render_card_info(revealed)}**")
+
+        options, labels = card_id_options(opponent.won_cards)
+        if not options:
+            st.info("相手の勝ち札がありません。")
+            if st.button("次へ", type="primary", use_container_width=True):
+                submit_effect_choice(game_state, None)
+            return
+
+        choice = st.selectbox(
+            "奪取する勝ち札",
+            options,
+            format_func=lambda card_id: labels[card_id],
+        )
+        if st.button("奪取する", type="primary", use_container_width=True):
             submit_effect_choice(game_state, choice)
         return
 

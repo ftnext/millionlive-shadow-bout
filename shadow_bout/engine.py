@@ -3,6 +3,7 @@ from dataclasses import replace
 
 from shadow_bout.effect_utils import (
     get_effective_janken,
+    get_opponent_side,
     get_player_state,
     set_battle_janken_override,
 )
@@ -887,6 +888,16 @@ def _choose_npc_pending_effect(
         ):
             return npc_strategy.select_target(npc.hand, state).id
         return "skip"
+
+    if ctx.effect == "special":
+        if ctx.step == 0:
+            return npc_strategy.choose_effect(
+                [janken.value for janken in WILDCARD_DECLARABLE_JANKENS], state
+            )
+        opponent = get_player_state(state, get_opponent_side(ctx.side))
+        if not opponent.won_cards:
+            return None
+        return npc_strategy.select_target(opponent.won_cards, state).id
 
     return None
 
