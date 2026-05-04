@@ -1285,6 +1285,32 @@ def test_special_steals_opponent_won_card_when_declared_mark_matches_revealed_ha
     assert state.npc.won_cards == [won_keep]
 
 
+def test_special_steals_only_one_won_card_when_same_id_exists():
+    miki = Card(
+        "card_03",
+        "美希",
+        "みき",
+        Janken.ROCK,
+        16,
+        Effect(EffectType.SPECIAL, "special", None),
+    )
+    opponent = Card("op", "相手", "あいて", Janken.ROCK, 16, None)
+    revealed = Card("n_hand", "相手手札", "あいててふだ", Janken.PAPER, 1, None)
+    won_a = Card("same_won", "相手勝ち札A", "あいてかちふだA", Janken.ROCK, 2, None)
+    won_b = Card("same_won", "相手勝ち札B", "あいてかちふだB", Janken.SCISSORS, 3, None)
+    state = GameState(
+        player=PlayerState(hand=[miki]),
+        npc=PlayerState(hand=[opponent, revealed], won_cards=[won_a, won_b]),
+    )
+
+    state = resolve_round(state, miki, opponent)
+    state = resume_round_effect(state, choice=Janken.PAPER.value)
+    state = resume_round_effect(state, choice=won_a.id)
+
+    assert state.player.deck == [won_a]
+    assert state.npc.won_cards == [won_b]
+
+
 def test_special_does_not_steal_when_declared_mark_mismatches_revealed_hand():
     miki = Card(
         "card_03",

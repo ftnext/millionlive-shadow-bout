@@ -83,6 +83,17 @@ def _find_card_by_id(state: GameState, side: Side, card_id: str | None) -> Card 
     )
 
 
+def _remove_first_card_by_id(cards: list[Card], card_id: str) -> list[Card]:
+    removed = False
+    remaining: list[Card] = []
+    for card in cards:
+        if not removed and card.id == card_id:
+            removed = True
+            continue
+        remaining.append(card)
+    return remaining
+
+
 def _parse_card_ids(choice: str | None) -> list[str]:
     if not choice:
         return []
@@ -509,7 +520,7 @@ def _resume_special(state: GameState, side: Side, choice: str | None) -> GameSta
         state = update_player(
             state,
             opp_side,
-            won_cards=[card for card in opp_state.won_cards if card.id != target.id],
+            won_cards=_remove_first_card_by_id(opp_state.won_cards, target.id),
         )
         return _finish_interactive_effect(
             state,
