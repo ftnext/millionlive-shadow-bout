@@ -1,9 +1,12 @@
 from dataclasses import replace
 
+from shadow_bout.effect_utils import get_battle_janken_override, get_effective_janken
+from shadow_bout.janken import judge_janken_values
 from shadow_bout.models import (
     Card,
     GameState,
     Janken,
+    JankenResult,
     Phase,
     PlayerState,
     RoundOutcome,
@@ -20,6 +23,17 @@ def calculate_effective_point(card: Card, player_state: PlayerState) -> int:
     return card.base_point + player_state.point_modifier + conditional
 
 
+def _calculate_effective_point_for_side(
+    state: GameState, side: Side, card: Card, player_state: PlayerState
+) -> int:
+    conditional = (
+        player_state.conditional_point_modifier_non_wildcard
+        if get_effective_janken(state, side, card) != Janken.WILDCARD
+        else 0
+    )
+    return card.base_point + player_state.point_modifier + conditional
+
+
 def resolve_post_effect_skipped(state: GameState) -> GameState:
     # Julia's removal effect already moved the cards, so the round is consumed
     # without applying the normal win/loss card movement.
@@ -30,40 +44,76 @@ def resolve_post_effect_skipped(state: GameState) -> GameState:
 
 def resolve_post_effect_points(state: GameState) -> GameState:
     res = state.current_battle
-    p_point = calculate_effective_point(res.player_card, state.player)
-    n_point = calculate_effective_point(res.npc_card, state.npc)
+    p_janken = get_effective_janken(state, Side.PLAYER, res.player_card)
+    n_janken = get_effective_janken(state, Side.NPC, res.npc_card)
+    battle_janken_changed = (
+        get_battle_janken_override(state, Side.PLAYER, res.player_card) is not None
+        or get_battle_janken_override(state, Side.NPC, res.npc_card) is not None
+    )
+    janken_result = (
+        judge_janken_values(p_janken, n_janken)
+        if battle_janken_changed
+        else JankenResult.DRAW
+    )
+    p_point = None
+    n_point = None
 
-    points = {Side.PLAYER: p_point, Side.NPC: n_point}
-    for effect in state.point_match_effects:
-        points[effect.target_side] = points[effect.source_side]
-    p_point = points[Side.PLAYER]
-    n_point = points[Side.NPC]
-
-    if p_point > n_point:
+    if janken_result == JankenResult.WIN:
         outcome = RoundOutcome.WIN
         winning_side = Side.PLAYER
-    elif p_point < n_point:
+    elif janken_result == JankenResult.LOSE:
         outcome = RoundOutcome.LOSE
         winning_side = Side.NPC
     else:
-        outcome = RoundOutcome.EVEN
-        winning_side = None
+        p_point = _calculate_effective_point_for_side(
+            state, Side.PLAYER, res.player_card, state.player
+        )
+        n_point = _calculate_effective_point_for_side(
+            state, Side.NPC, res.npc_card, state.npc
+        )
+
+        points = {Side.PLAYER: p_point, Side.NPC: n_point}
+        for effect in state.point_match_effects:
+            points[effect.target_side] = points[effect.source_side]
+        p_point = points[Side.PLAYER]
+        n_point = points[Side.NPC]
+
+        if p_point > n_point:
+            outcome = RoundOutcome.WIN
+            winning_side = Side.PLAYER
+        elif p_point < n_point:
+            outcome = RoundOutcome.LOSE
+            winning_side = Side.NPC
+        else:
+            outcome = RoundOutcome.EVEN
+            winning_side = None
 
     new_res = replace(
         res,
         outcome=outcome,
         winning_side=winning_side,
+        janken_result=janken_result,
         player_point=p_point,
         npc_point=n_point,
     )
 
-    log_msg = f"効果解決後ポイント比較: あなた({p_point}) vs NPC({n_point}) -> "
-    if outcome == RoundOutcome.WIN:
-        log_msg += "あなたの勝ち！"
-    elif outcome == RoundOutcome.LOSE:
-        log_msg += "NPCの勝ち！"
+    if janken_result == JankenResult.DRAW:
+        log_msg = f"効果解決後ポイント比較: あなた({p_point}) vs NPC({n_point}) -> "
+        if outcome == RoundOutcome.WIN:
+            log_msg += "あなたの勝ち！"
+        elif outcome == RoundOutcome.LOSE:
+            log_msg += "NPCの勝ち！"
+        else:
+            log_msg += "引き分け！"
     else:
-        log_msg += "引き分け！"
+        log_msg = (
+            "効果解決後じゃんけん再判定: "
+            f"あなた({p_janken.value}) vs NPC({n_janken.value}) -> "
+        )
+        if outcome == RoundOutcome.WIN:
+            log_msg += "あなたの勝ち！"
+        else:
+            log_msg += "NPCの勝ち！"
 
     updated_state = replace(
         state, current_battle=new_res, battle_log=state.battle_log + [log_msg]

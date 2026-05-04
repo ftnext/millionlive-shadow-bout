@@ -8,6 +8,7 @@ from shadow_bout.effect_utils import (
     get_opponent_side,
     get_player_state,
     is_immune_to_opponent_effect,
+    set_battle_janken_override,
     set_must_reveal_played_card,
     set_must_reveal_played_card_rounds,
     update_player,
@@ -22,6 +23,13 @@ from shadow_bout.models import (
     PointMatchEffect,
     Side,
 )
+
+JANKEN_NAMES = {
+    Janken.ROCK: "グー",
+    Janken.SCISSORS: "チョキ",
+    Janken.PAPER: "パー",
+    Janken.WILDCARD: "ワイルド",
+}
 
 EffectHandler = Callable[[GameState, Side, Card], GameState]
 _registry: dict[str, EffectHandler] = {}
@@ -850,6 +858,43 @@ def effect_buff_snowball(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("change_janken")
+def effect_change_janken(state: GameState, side: Side, card: Card) -> GameState:
+    opp_side = get_opponent_side(side)
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
+    target_janken = Janken(card.effect.value)
+    target_name = JANKEN_NAMES[target_janken]
+
+    # card_09（律子）は「次の勝負」の相手の場/手札に適用する。
+    if card.id in ("card_09", "c9"):
+        state = update_player(
+            state,
+            opp_side,
+            next_round_janken_override=target_janken,
+        )
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 次ラウンドの相手の場と手札を{target_name}扱い"],
+        )
+
+    # card_28（亜利沙）は即時に現在の相手場カードだけへ適用し、効果後の再判定に反映する。
+    if card.id in ("card_28", "c28"):
+        state = set_battle_janken_override(state, opp_side, target_janken)
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 相手の場のカードを{target_name}扱い"],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 未対応カードID"],
+    )
+
+
 @register("buff_scaling")
 def effect_buff_scaling(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -1380,6 +1425,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         pending_draw_on_win=(),
         pending_next_round_buff_on_win=(),
         point_match_effects=(),
+        battle_janken_overrides=(),
     )
 
 

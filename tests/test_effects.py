@@ -17,6 +17,7 @@ from shadow_bout.models import (
     EffectType,
     GameState,
     Janken,
+    JankenResult,
     PersistentPointEffect,
     Phase,
     PlayerState,
@@ -1411,6 +1412,69 @@ def test_buff_snowball_applies_current_round_only_when_not_won():
     next_state = proceed_to_next(state)
     assert next_state.round_number == 2
     assert next_state.player.point_modifier == 0
+
+
+def test_change_janken_arisa_rejudges_current_battle_mark():
+    arisa = Card(
+        "card_28",
+        "亜利沙",
+        "ありさ",
+        Janken.ROCK,
+        11,
+        Effect(
+            EffectType.CHANGE_JANKEN, "change current field to scissors", "scissors"
+        ),
+    )
+    opponent = Card("op", "相手", "あいて", Janken.ROCK, 30, None)
+    state = GameState(
+        player=PlayerState(hand=[arisa]),
+        npc=PlayerState(hand=[opponent]),
+    )
+
+    state = resolve_round(state, arisa, opponent)
+
+    assert state.phase == Phase.REVEAL
+    assert state.current_battle.janken_result == JankenResult.WIN
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.current_battle.player_point is None
+    assert state.current_battle.npc_point is None
+    assert state.player.won_cards == [opponent]
+    assert any("効果解決後じゃんけん再判定" in log for log in state.battle_log)
+
+
+def test_change_janken_ritsuko_applies_rock_override_only_next_round():
+    ritsuko = Card(
+        "card_09",
+        "律子",
+        "りつこ",
+        Janken.PAPER,
+        16,
+        Effect(EffectType.CHANGE_JANKEN, "next opponent marks to rock", "rock"),
+    )
+    first_opponent = Card("n1", "相手1", "あいて1", Janken.PAPER, 10, None)
+    player_next = Card("p2", "次自分", "つぎじぶん", Janken.SCISSORS, 5, None)
+    npc_next = Card("n2", "次相手", "つぎあいて", Janken.PAPER, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[ritsuko, player_next]),
+        npc=PlayerState(hand=[first_opponent, npc_next]),
+    )
+
+    state = resolve_round(state, ritsuko, first_opponent)
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.npc.next_round_janken_override == Janken.ROCK
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.npc.janken_override == Janken.ROCK
+    assert next_state.npc.next_round_janken_override is None
+
+    next_state = resolve_round(next_state, player_next, npc_next)
+
+    assert next_state.current_battle.janken_result == JankenResult.LOSE
+    assert next_state.current_battle.outcome == RoundOutcome.LOSE
+
+    third_state = proceed_to_next(next_state)
+    assert third_state.npc.janken_override is None
 
 
 def test_conditional_debuff_next_is_applied_only_on_next_round_for_npc_side():
