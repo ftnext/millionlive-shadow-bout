@@ -1,7 +1,11 @@
 import random
 from dataclasses import replace
 
-from shadow_bout.effect_utils import get_effective_janken, get_player_state
+from shadow_bout.effect_utils import (
+    get_effective_janken,
+    get_player_state,
+    set_battle_janken_override,
+)
 from shadow_bout.effects import (
     get_effect_handler,
     init_effect_resolution,
@@ -30,6 +34,12 @@ JANKEN_ICONS = {
     Janken.PAPER: "✋",
     Janken.WILDCARD: "🃏",
 }
+JANKEN_NAMES = {
+    Janken.ROCK: "グー",
+    Janken.SCISSORS: "チョキ",
+    Janken.PAPER: "パー",
+}
+WILDCARD_DECLARABLE_JANKENS = (Janken.ROCK, Janken.SCISSORS, Janken.PAPER)
 
 
 def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
@@ -351,6 +361,60 @@ def apply_must_reveal_played_card(
     )
 
 
+def _coerce_wildcard_janken(janken: Janken | str | None, side: Side) -> Janken:
+    if janken is None:
+        return Janken.ROCK
+    if isinstance(janken, str):
+        janken = Janken(janken)
+    if janken not in WILDCARD_DECLARABLE_JANKENS:
+        raise ValueError(
+            f"{side.value} wildcard declaration must be rock/scissors/paper"
+        )
+    return janken
+
+
+def _apply_wildcard_declarations(
+    game_state: GameState,
+    player_card: Card,
+    npc_card: Card,
+    *,
+    player_wildcard_janken: Janken | str | None,
+    npc_wildcard_janken: Janken | str | None,
+) -> GameState:
+    declarations = (
+        (Side.PLAYER, player_card, player_wildcard_janken, "あなた"),
+        (Side.NPC, npc_card, npc_wildcard_janken, "NPC"),
+    )
+    logs: list[str] = []
+    for side, card, declared_janken, side_name in declarations:
+        if card.janken != Janken.WILDCARD:
+            continue
+        janken = _coerce_wildcard_janken(declared_janken, side)
+        game_state = set_battle_janken_override(game_state, side, janken, card=card)
+        logs.append(
+            f"R{game_state.round_number}: {side_name}の{card.name}は"
+            f"{JANKEN_NAMES[janken]}として扱う"
+        )
+
+    if not logs:
+        return game_state
+    return replace(game_state, battle_log=game_state.battle_log + logs)
+
+
+def _choose_npc_wildcard_janken(
+    game_state: GameState, npc_card: Card, npc_strategy: NpcStrategy
+) -> Janken | None:
+    if npc_card.janken != Janken.WILDCARD:
+        return None
+
+    choose_effect = getattr(npc_strategy, "choose_effect", None)
+    if choose_effect is None:
+        return random.choice(WILDCARD_DECLARABLE_JANKENS)
+
+    choices = [janken.value for janken in WILDCARD_DECLARABLE_JANKENS]
+    return _coerce_wildcard_janken(choose_effect(choices, game_state), Side.NPC)
+
+
 def init_game(deck: list[Card]) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。"""
     p_deck = list(deck)
@@ -419,28 +483,67 @@ def _select_npc_card_with_constraints(
 
 
 def select_card(
-    game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
+    game_state: GameState,
+    player_card: Card,
+    npc_strategy: NpcStrategy,
+    *,
+    wildcard_janken: Janken | str | None = None,
 ) -> GameState:
     _validate_selected_card(game_state.player, player_card, Side.PLAYER)
     npc_card = _select_npc_card_with_constraints(game_state, npc_strategy)
+    npc_wildcard_janken = _choose_npc_wildcard_janken(
+        game_state, npc_card, npc_strategy
+    )
     return resolve_npc_pending_effects(
-        resolve_round(game_state, player_card, npc_card), npc_strategy
+        resolve_round(
+            game_state,
+            player_card,
+            npc_card,
+            player_wildcard_janken=wildcard_janken,
+            npc_wildcard_janken=npc_wildcard_janken,
+        ),
+        npc_strategy,
     )
 
 
 def select_card_stepwise(
-    game_state: GameState, player_card: Card, npc_strategy: NpcStrategy
+    game_state: GameState,
+    player_card: Card,
+    npc_strategy: NpcStrategy,
+    *,
+    wildcard_janken: Janken | str | None = None,
 ) -> GameState:
     _validate_selected_card(game_state.player, player_card, Side.PLAYER)
     npc_card = _select_npc_card_with_constraints(game_state, npc_strategy)
-    return resolve_round_stepwise(game_state, player_card, npc_card)
+    npc_wildcard_janken = _choose_npc_wildcard_janken(
+        game_state, npc_card, npc_strategy
+    )
+    return resolve_round_stepwise(
+        game_state,
+        player_card,
+        npc_card,
+        player_wildcard_janken=wildcard_janken,
+        npc_wildcard_janken=npc_wildcard_janken,
+    )
 
 
 def resolve_round(
-    game_state: GameState, player_card: Card, npc_card: Card
+    game_state: GameState,
+    player_card: Card,
+    npc_card: Card,
+    *,
+    player_wildcard_janken: Janken | str | None = None,
+    npc_wildcard_janken: Janken | str | None = None,
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
     game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
+    game_state = _apply_wildcard_declarations(
+        game_state,
+        player_card,
+        npc_card,
+        player_wildcard_janken=player_wildcard_janken,
+        npc_wildcard_janken=npc_wildcard_janken,
+    )
     j_res = judge_effective_janken(game_state, player_card, npc_card)
 
     player_point = None
@@ -520,10 +623,22 @@ def resolve_round(
 
 
 def resolve_round_stepwise(
-    game_state: GameState, player_card: Card, npc_card: Card
+    game_state: GameState,
+    player_card: Card,
+    npc_card: Card,
+    *,
+    player_wildcard_janken: Janken | str | None = None,
+    npc_wildcard_janken: Janken | str | None = None,
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
     game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
+    game_state = _apply_wildcard_declarations(
+        game_state,
+        player_card,
+        npc_card,
+        player_wildcard_janken=player_wildcard_janken,
+        npc_wildcard_janken=npc_wildcard_janken,
+    )
     j_res = judge_effective_janken(game_state, player_card, npc_card)
 
     player_point = None
