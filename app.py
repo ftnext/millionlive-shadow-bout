@@ -133,9 +133,11 @@ def render_footer_links():
     st.caption("関連リンク")
     st.markdown(
         """
-        - [陰界戦戯とは](https://x.com/imasml_theater/status/2047601441863282705)
+        - [陰界戦戯とは](https://x.com/imasml_theater/status/2047601441863282705)（5/10(日)まで[キャンペーン](https://x.com/imasml_theater/status/2049739765344506061)お忘れなく！）
         - [もっと知る（ミリシタをダウンロード）](https://millionlive-theaterdays.idolmaster-official.jp/)
+        - [13thライブ](https://idolmaster-official.jp/live_event/million13th/)全力援走 & Grand bal masqué、楽しみましょう！（[配信はこちらから](https://idolmaster-official.jp/live_event/million13th/streaming/)）
         - [このアプリのソースコード](https://github.com/ftnext/millionlive-shadow-bout)
+        - 実装者 [にっP](https://x.com/ftnext/status/1720616435246915977)
         """
     )
 
@@ -176,7 +178,7 @@ def build_share_text(game_state, p_score, n_score, outcome_text):
 def render_share_button(game_state, p_score, n_score, outcome_text):
     text = build_share_text(game_state, p_score, n_score, outcome_text)
     text_json = json.dumps(text)
-    hashtags_json = json.dumps("陰界戦戯")
+    hashtags_json = json.dumps("おい陰界戦戯しろよ")
     components.html(
         f"""
         <a id="tweetLink" href="#" target="_blank" rel="noopener"
@@ -747,7 +749,7 @@ def main():
                 st.session_state.selected_card_id = None
                 st.rerun()
             if st.button(
-                "シャドウバウト・エンゲージ（ランダム13枚）",
+                "シャドウバウト・エンゲージ（ランダム13枚）β版",
                 use_container_width=True,
                 key="engage_random",
             ):
