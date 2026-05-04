@@ -142,6 +142,42 @@ def test_win_condition_handles_missing_deck_without_overriding_result():
     assert any("山札が不足しているため不発" in log for log in state.battle_log)
 
 
+def test_win_condition_handles_revealed_wildcard_as_non_matching_mark():
+    tomoka = Card(
+        "card_31",
+        "朋花",
+        "ともか",
+        Janken.ROCK,
+        12,
+        Effect(EffectType.WIN_CONDITION, "win condition", None),
+    )
+    opponent = Card("opponent", "相手", "あいて", Janken.ROCK, 20, None)
+    wildcard = Card(
+        "card_49",
+        "桃子",
+        "ももこ",
+        Janken.WILDCARD,
+        6,
+        Effect(EffectType.WILDCARD, "wildcard", None),
+    )
+    npc_top = Card(
+        "npc_top", "相手山チョキ", "あいてやまちょき", Janken.SCISSORS, 1, None
+    )
+    state = GameState(
+        player=PlayerState(hand=[tomoka], deck=[wildcard]),
+        npc=PlayerState(hand=[opponent], deck=[npc_top]),
+    )
+
+    state = resolve_round(state, tomoka, opponent)
+
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.current_battle.winning_side == Side.NPC
+    assert state.player.deck == [wildcard]
+    assert state.npc.deck == [npc_top]
+    assert any("桃子(ワイルド)" in log for log in state.battle_log)
+    assert any("勝利条件不成立" in log for log in state.battle_log)
+
+
 def test_win_condition_later_success_takes_priority_when_both_sides_succeed():
     player_tomoka = Card(
         "player_card_31",

@@ -831,8 +831,10 @@ def effect_win_condition(state: GameState, side: Side, card: Card) -> GameState:
     revealed_jankens = {own_top.janken, opp_top.janken}
     reveal_log = (
         f"{card.name}の効果発動: 山札の上から自分は{own_top.name}"
-        f"({JANKEN_NAMES[own_top.janken]})、相手は{opp_top.name}"
-        f"({JANKEN_NAMES[opp_top.janken]})を公開し山札の下へ戻した"
+        f"({JANKEN_NAMES.get(own_top.janken, own_top.janken.value)})、"
+        f"相手は{opp_top.name}"
+        f"({JANKEN_NAMES.get(opp_top.janken, opp_top.janken.value)})"
+        "を公開し山札の下へ戻した"
     )
 
     if revealed_jankens == {Janken.PAPER, Janken.SCISSORS}:
