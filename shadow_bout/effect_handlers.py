@@ -83,6 +83,17 @@ def _find_card_by_id(state: GameState, side: Side, card_id: str | None) -> Card 
     )
 
 
+def _remove_first_card_by_id(cards: list[Card], card_id: str) -> list[Card]:
+    removed = False
+    remaining: list[Card] = []
+    for card in cards:
+        if not removed and card.id == card_id:
+            removed = True
+            continue
+        remaining.append(card)
+    return remaining
+
+
 def _parse_card_ids(choice: str | None) -> list[str]:
     if not choice:
         return []
@@ -476,6 +487,85 @@ def _resume_debuff_counterable(
     )
 
 
+def _coerce_declared_janken(choice: str | None) -> Janken:
+    if choice is None:
+        return Janken.ROCK
+    try:
+        janken = Janken(choice)
+    except ValueError:
+        return Janken.ROCK
+    if janken not in (Janken.ROCK, Janken.SCISSORS, Janken.PAPER):
+        return Janken.ROCK
+    return janken
+
+
+def _resume_special(state: GameState, side: Side, choice: str | None) -> GameState:
+    ctx = state.pending_effect_context
+    source_card = _find_card_by_id(state, side, ctx.card_id if ctx else None)
+    source_name = source_card.name if source_card else "美希"
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    if ctx and ctx.step == 1:
+        target = _find_card(opp_state.won_cards, choice) or (
+            opp_state.won_cards[0] if opp_state.won_cards else None
+        )
+        if target is None:
+            return _finish_interactive_effect(
+                state, f"-> {source_name}の効果: 相手の勝ち札がないため奪取できない"
+            )
+
+        own_state = get_player_state(state, side)
+        state = update_player(state, side, deck=own_state.deck + [target])
+        state = update_player(
+            state,
+            opp_side,
+            won_cards=_remove_first_card_by_id(opp_state.won_cards, target.id),
+        )
+        return _finish_interactive_effect(
+            state,
+            f"-> {source_name}の効果: {target.name}を相手の勝ち札から奪い、自分の山札の下へ置いた",
+        )
+
+    declared = _coerce_declared_janken(choice)
+    declared_name = JANKEN_NAMES[declared]
+    if not opp_state.hand:
+        return _finish_interactive_effect(
+            state,
+            f"-> {source_name}の効果: {declared_name}を宣言したが、相手の手札がないため確認できない",
+        )
+
+    revealed = random.choice(opp_state.hand)
+    revealed_name = JANKEN_NAMES.get(revealed.janken, revealed.janken.value)
+    log = (
+        f"-> {source_name}の効果: {declared_name}を宣言し、"
+        f"相手手札から{revealed.name}({revealed_name})を確認"
+    )
+    if revealed.janken != declared:
+        return _finish_interactive_effect(state, f"{log}。一致しないため奪取なし")
+
+    if not opp_state.won_cards:
+        return _finish_interactive_effect(
+            state, f"{log}。一致したが相手の勝ち札がないため奪取できない"
+        )
+
+    next_ctx = replace(
+        ctx,
+        step=1,
+        payload={
+            **(ctx.payload if ctx else {}),
+            "declared_janken": declared.value,
+            "revealed_card_id": revealed.id,
+        },
+    )
+    return replace(
+        state,
+        phase=Phase.INTERACTIVE_EFFECT,
+        pending_effect_context=next_ctx,
+        battle_log=state.battle_log + [f"{log}。奪取する勝ち札を選択中..."],
+    )
+
+
 def _resume_removal(state: GameState, side: Side, choice: str | None) -> GameState:
     if choice not in (None, "activate", "yes", "true"):
         return _finish_interactive_effect(state, "-> ジュリアの効果: 発動しない")
@@ -567,6 +657,8 @@ def resume_pending_effect(state: GameState, choice: str | None = None) -> GameSt
         return _resume_choose_multiple(state, side, choice)
     if ctx.effect == "debuff_counterable":
         return _resume_debuff_counterable(state, side, choice)
+    if ctx.effect == "special":
+        return _resume_special(state, side, choice)
 
     return _finish_interactive_effect(state, "-> 選択完了")
 
@@ -804,6 +896,21 @@ def effect_steal_hand(state: GameState, side: Side, card: Card) -> GameState:
         state,
         battle_log=state.battle_log
         + [f"{card.name}の効果発動: 相手の手札から{stolen.name}を奪って手札に加えた"],
+    )
+
+
+@register("special")
+def effect_special(state: GameState, side: Side, card: Card) -> GameState:
+    if _opponent_is_immune(state, side):
+        return _immune_blocked_state(state, card)
+
+    ctx = PendingEffectContext(side=side, card_id=card.id, effect="special")
+    state = replace(
+        state, phase=Phase.INTERACTIVE_EFFECT, effect_step=0, pending_effect_context=ctx
+    )
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{card.name}の効果発動: 宣言待機中..."],
     )
 
 
