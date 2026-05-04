@@ -726,8 +726,12 @@ def finalize_round_if_ready(state: GameState) -> GameState:
     # But wait, if removal_activated is True, we already consumed the round and cards were discarded/decked in the effect handler!
     # So we don't apply_battle_result if removal was activated!
     if state.removal_activated:
-        # Just proceed to REVEAL phase
-        return replace(state, phase=Phase.REVEAL)
+        completed = CompletedRound(round_number=state.round_number, battle=res)
+        return replace(
+            state,
+            phase=Phase.REVEAL,
+            completed_rounds=state.completed_rounds + (completed,),
+        )
 
     final_state = apply_battle_result(state, res)
 
