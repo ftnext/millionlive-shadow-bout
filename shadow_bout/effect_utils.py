@@ -1,6 +1,13 @@
 from dataclasses import replace
 
-from shadow_bout.models import Card, GameState, PlayerState, Side
+from shadow_bout.models import (
+    BattleJankenOverride,
+    Card,
+    GameState,
+    Janken,
+    PlayerState,
+    Side,
+)
 
 
 def update_player(state: GameState, side: Side, **kwargs) -> GameState:
@@ -26,6 +33,47 @@ def get_battle_card(state: GameState, side: Side) -> Card | None:
     if side == Side.PLAYER:
         return state.current_battle.player_card
     return state.current_battle.npc_card
+
+
+def get_battle_janken_override(
+    state: GameState, side: Side, card: Card
+) -> Janken | None:
+    return next(
+        (
+            override.janken
+            for override in reversed(state.battle_janken_overrides)
+            if override.side == side and override.card_id == card.id
+        ),
+        None,
+    )
+
+
+def get_effective_janken(state: GameState, side: Side, card: Card) -> Janken:
+    battle_card = get_battle_card(state, side)
+    if battle_card is not None and battle_card.id == card.id:
+        battle_override = get_battle_janken_override(state, side, card)
+        if battle_override is not None:
+            return battle_override
+
+    player_state = get_player_state(state, side)
+    return player_state.janken_override or card.janken
+
+
+def set_battle_janken_override(
+    state: GameState, side: Side, janken: Janken
+) -> GameState:
+    battle_card = get_battle_card(state, side)
+    if battle_card is None:
+        return state
+
+    overrides = tuple(
+        override for override in state.battle_janken_overrides if override.side != side
+    )
+    return replace(
+        state,
+        battle_janken_overrides=overrides
+        + (BattleJankenOverride(side=side, card_id=battle_card.id, janken=janken),),
+    )
 
 
 def is_immune_to_opponent_effect(

@@ -96,6 +96,13 @@ class Side(Enum):
 
 
 @dataclass(frozen=True)
+class BattleJankenOverride:
+    side: Side
+    card_id: str
+    janken: Janken
+
+
+@dataclass(frozen=True)
 class Card:
     id: str
     name: str
@@ -115,8 +122,10 @@ class PlayerState:
     revealed_card_ids: frozenset[str] = frozenset()
     point_modifier: int = 0
     conditional_point_modifier_non_wildcard: int = 0
+    janken_override: Janken | None = None
     next_round_point_modifier: int = 0
     next_round_conditional_point_modifier_non_wildcard: int = 0
+    next_round_janken_override: Janken | None = None
     effect_negated: bool = False
     banned_card_ids: frozenset[str] = frozenset()
     forced_card_id: str | None = None
@@ -176,3 +185,4 @@ class GameState:
     pending_draw_on_win: tuple[tuple[Side, int], ...] = ()
     pending_next_round_buff_on_win: tuple[tuple[Side, int], ...] = ()
     point_match_effects: tuple[PointMatchEffect, ...] = ()
+    battle_janken_overrides: tuple[BattleJankenOverride, ...] = ()

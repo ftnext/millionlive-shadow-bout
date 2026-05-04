@@ -1,7 +1,7 @@
 import random
 from dataclasses import replace
 
-from shadow_bout.effect_utils import get_player_state
+from shadow_bout.effect_utils import get_effective_janken, get_player_state
 from shadow_bout.effects import (
     get_effect_handler,
     init_effect_resolution,
@@ -10,6 +10,7 @@ from shadow_bout.effects import (
     resume_effect,
     resume_effect_step,
 )
+from shadow_bout.janken import judge_janken_values
 from shadow_bout.models import (
     BattleResult,
     Card,
@@ -32,23 +33,16 @@ JANKEN_ICONS = {
 
 
 def judge_janken(card_a: Card, card_b: Card) -> JankenResult:
-    """じゃんけんの三すくみ判定のみ。WIN / LOSE / DRAW を返す。"""
-    a = card_a.janken
-    b = card_b.janken
+    return judge_janken_values(card_a.janken, card_b.janken)
 
-    if a == b:
-        return JankenResult.DRAW
 
-    win_map = {
-        Janken.ROCK: Janken.SCISSORS,
-        Janken.SCISSORS: Janken.PAPER,
-        Janken.PAPER: Janken.ROCK,
-    }
-
-    if win_map[a] == b:
-        return JankenResult.WIN
-    else:
-        return JankenResult.LOSE
+def judge_effective_janken(
+    game_state: GameState, player_card: Card, npc_card: Card
+) -> JankenResult:
+    return judge_janken_values(
+        get_effective_janken(game_state, Side.PLAYER, player_card),
+        get_effective_janken(game_state, Side.NPC, npc_card),
+    )
 
 
 def compare_points(card_a: Card, card_b: Card) -> RoundOutcome:
@@ -182,12 +176,14 @@ def reset_round_state(game_state: GameState) -> GameState:
         game_state.player,
         point_modifier=0,
         conditional_point_modifier_non_wildcard=0,
+        janken_override=None,
         effect_negated=False,
     )
     new_npc = replace(
         game_state.npc,
         point_modifier=0,
         conditional_point_modifier_non_wildcard=0,
+        janken_override=None,
         effect_negated=False,
     )
     return replace(
@@ -205,6 +201,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         pending_draw_on_win=(),
         pending_next_round_buff_on_win=(),
         point_match_effects=(),
+        battle_janken_overrides=(),
     )
 
 
@@ -212,6 +209,8 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
     """次ラウンド開始時に1回だけ適用して消える持ち越し効果を適用する。"""
     player_bonus = game_state.player.next_round_point_modifier
     npc_bonus = game_state.npc.next_round_point_modifier
+    player_janken_override = game_state.player.next_round_janken_override
+    npc_janken_override = game_state.npc.next_round_janken_override
 
     player_persistent_bonus = sum(
         effect.value for effect in game_state.player.persistent_point_effects
@@ -236,22 +235,26 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
             game_state.player.point_modifier + player_bonus + player_persistent_bonus
         ),
         next_round_point_modifier=0,
+        janken_override=player_janken_override,
         conditional_point_modifier_non_wildcard=(
             game_state.player.conditional_point_modifier_non_wildcard
             + game_state.player.next_round_conditional_point_modifier_non_wildcard
         ),
         next_round_conditional_point_modifier_non_wildcard=0,
+        next_round_janken_override=None,
         persistent_point_effects=player_remaining_effects,
     )
     new_npc = replace(
         game_state.npc,
         point_modifier=game_state.npc.point_modifier + npc_bonus + npc_persistent_bonus,
         next_round_point_modifier=0,
+        janken_override=npc_janken_override,
         conditional_point_modifier_non_wildcard=(
             game_state.npc.conditional_point_modifier_non_wildcard
             + game_state.npc.next_round_conditional_point_modifier_non_wildcard
         ),
         next_round_conditional_point_modifier_non_wildcard=0,
+        next_round_janken_override=None,
         persistent_point_effects=npc_remaining_effects,
     )
 
@@ -271,6 +274,14 @@ def apply_next_round_carryover_effects(game_state: GameState) -> GameState:
     if npc_persistent_bonus:
         logs.append(
             f"R{game_state.round_number}: 継続効果適用 NPC ポイント{npc_persistent_bonus:+d}"
+        )
+    if player_janken_override:
+        logs.append(
+            f"R{game_state.round_number}: 持ち越し効果適用 あなた マークを{JANKEN_ICONS.get(player_janken_override, '')}扱い"
+        )
+    if npc_janken_override:
+        logs.append(
+            f"R{game_state.round_number}: 持ち越し効果適用 NPC マークを{JANKEN_ICONS.get(npc_janken_override, '')}扱い"
         )
 
     return replace(
@@ -430,7 +441,7 @@ def resolve_round(
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
     game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
-    j_res = judge_janken(player_card, npc_card)
+    j_res = judge_effective_janken(game_state, player_card, npc_card)
 
     player_point = None
     npc_point = None
@@ -465,8 +476,12 @@ def resolve_round(
         n_score = calculate_final_score(game_state.npc)
         score_str = f"R{game_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
 
-        p_icon = JANKEN_ICONS.get(player_card.janken, "")
-        n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+        p_icon = JANKEN_ICONS.get(
+            get_effective_janken(game_state, Side.PLAYER, player_card), ""
+        )
+        n_icon = JANKEN_ICONS.get(
+            get_effective_janken(game_state, Side.NPC, npc_card), ""
+        )
         log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> じゃんけんあいこ！効果解決へ... {score_str}"
         new_state = replace(
             game_state,
@@ -487,8 +502,12 @@ def resolve_round(
         n_score = calculate_final_score(new_state.npc)
         score_str = f"R{new_state.round_number} [あなた {p_score}pt / NPC {n_score}pt]"
 
-        p_icon = JANKEN_ICONS.get(player_card.janken, "")
-        n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+        p_icon = JANKEN_ICONS.get(
+            get_effective_janken(game_state, Side.PLAYER, player_card), ""
+        )
+        n_icon = JANKEN_ICONS.get(
+            get_effective_janken(game_state, Side.NPC, npc_card), ""
+        )
         log_msg = f"{prefix} あなた({player_card.name}{p_icon}) vs NPC({npc_card.name}{n_icon}) -> "
         if outcome == RoundOutcome.WIN:
             log_msg += f"あなたの勝ち！ {score_str}"
@@ -505,7 +524,7 @@ def resolve_round_stepwise(
 ) -> GameState:
     game_state = set_battle_cards_as_played(game_state, player_card, npc_card)
     game_state = apply_must_reveal_played_card(game_state, player_card, npc_card)
-    j_res = judge_janken(player_card, npc_card)
+    j_res = judge_effective_janken(game_state, player_card, npc_card)
 
     player_point = None
     npc_point = None
@@ -533,8 +552,10 @@ def resolve_round_stepwise(
     )
 
     prefix = f"R{game_state.round_number}:"
-    p_icon = JANKEN_ICONS.get(player_card.janken, "")
-    n_icon = JANKEN_ICONS.get(npc_card.janken, "")
+    p_icon = JANKEN_ICONS.get(
+        get_effective_janken(game_state, Side.PLAYER, player_card), ""
+    )
+    n_icon = JANKEN_ICONS.get(get_effective_janken(game_state, Side.NPC, npc_card), "")
 
     if j_res == JankenResult.DRAW:
         p_score = calculate_final_score(game_state.player)
