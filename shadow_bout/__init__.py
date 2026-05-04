@@ -1,4 +1,4 @@
-from shadow_bout.cards import load_deck
+from shadow_bout.cards import load_deck, select_random_deck
 from shadow_bout.engine import (
     calculate_final_score,
     continue_round_effect_step,
@@ -43,5 +43,6 @@ __all__ = [
     "continue_round_effect_step",
     "calculate_final_score",
     "load_deck",
+    "select_random_deck",
     "RandomStrategy",
 ]

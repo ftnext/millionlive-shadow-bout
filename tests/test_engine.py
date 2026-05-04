@@ -225,6 +225,35 @@ def test_init_game(mock_cards):
     assert len(state.npc.deck) == 11
 
 
+def test_init_game_with_separate_npc_deck():
+    p_deck = [
+        Card("p1", "P1", "k", Janken.ROCK, 10),
+        Card("p2", "P2", "k", Janken.SCISSORS, 10),
+        Card("p3", "P3", "k", Janken.PAPER, 10),
+        Card("p4", "P4", "k", Janken.ROCK, 10),
+        Card("p5", "P5", "k", Janken.SCISSORS, 10),
+        Card("p6", "P6", "k", Janken.PAPER, 10),
+        Card("p7", "P7", "k", Janken.ROCK, 10),
+    ]
+    n_deck = [
+        Card("n1", "N1", "k", Janken.ROCK, 10),
+        Card("n2", "N2", "k", Janken.SCISSORS, 10),
+        Card("n3", "N3", "k", Janken.PAPER, 10),
+        Card("n4", "N4", "k", Janken.ROCK, 10),
+        Card("n5", "N5", "k", Janken.SCISSORS, 10),
+        Card("n6", "N6", "k", Janken.PAPER, 10),
+        Card("n7", "N7", "k", Janken.ROCK, 10),
+    ]
+
+    state = init_game(p_deck, n_deck)
+
+    player_ids = {c.id for c in state.player.hand + state.player.deck}
+    npc_ids = {c.id for c in state.npc.hand + state.npc.deck}
+    assert player_ids == {c.id for c in p_deck}
+    assert npc_ids == {c.id for c in n_deck}
+    assert player_ids.isdisjoint(npc_ids)
+
+
 def test_check_forfeit(mock_cards):
     p_empty = PlayerState(hand=[])
     p_has = PlayerState(hand=mock_cards)

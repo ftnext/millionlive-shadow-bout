@@ -1,4 +1,5 @@
 import json
+import random
 from pathlib import Path
 
 from shadow_bout.models import Card, Effect, EffectType, Janken
@@ -42,3 +43,11 @@ def load_deck(
         return [id_to_card[cid] for cid in card_ids if cid in id_to_card]
 
     return all_cards
+
+
+def select_random_deck(
+    size: int = 13, jsonl_path: Path = Path("cards.jsonl")
+) -> list[Card]:
+    """cards.jsonl の全カードから重複なく size 枚をランダム抽選して返す。"""
+    all_cards = load_deck(jsonl_path=jsonl_path)
+    return random.sample(all_cards, size)
