@@ -158,6 +158,16 @@ class BattleResult:
 
 
 @dataclass(frozen=True)
+class CompletedRound:
+    """1ラウンドの最終的な経過。通常決着なら `battle` に BattleResult、
+    不戦敗で進行したラウンドなら `forfeiting_side` がセットされる。"""
+
+    round_number: int
+    battle: BattleResult | None = None
+    forfeiting_side: Side | None = None
+
+
+@dataclass(frozen=True)
 class PendingEffectContext:
     side: Side
     card_id: str
@@ -174,6 +184,7 @@ class GameState:
     phase: Phase = Phase.START
     battle_log: list[str] = field(default_factory=list)
     current_battle: BattleResult | None = None
+    completed_rounds: tuple[CompletedRound, ...] = ()
     last_restart_round: int | None = None
     effect_step: int = 0
     pending_effect_context: PendingEffectContext | None = None

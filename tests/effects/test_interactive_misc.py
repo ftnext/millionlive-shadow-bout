@@ -5,6 +5,7 @@ from shadow_bout.engine import (
 )
 from shadow_bout.models import (
     Card,
+    CompletedRound,
     Effect,
     EffectType,
     GameState,
@@ -203,3 +204,6 @@ def test_resume_removal_effect_skips_winner_and_moves_cards():
     assert state.npc.discard == [other]
     assert state.player.won_cards == []
     assert state.npc.won_cards == []
+    assert state.completed_rounds == (
+        CompletedRound(round_number=state.round_number, battle=state.current_battle),
+    )
