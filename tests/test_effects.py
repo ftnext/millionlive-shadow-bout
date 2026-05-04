@@ -1326,6 +1326,65 @@ def test_buff_next_is_applied_only_on_next_round_for_player_side():
     assert third_state.player.point_modifier == 0
 
 
+def test_buff_snowball_applies_current_and_next_round_when_won():
+    konomi = Card(
+        "card_39",
+        "このみ",
+        "このみ",
+        Janken.PAPER,
+        14,
+        Effect(EffectType.BUFF_SNOWBALL, "this +3 and win next +3", 3),
+    )
+    opponent = Card("n1", "相手", "あいて", Janken.PAPER, 16, None)
+    next_player = Card("p2", "p2", "ぴー2", Janken.ROCK, 5, None)
+    next_npc = Card("n2", "n2", "えぬ2", Janken.SCISSORS, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[konomi, next_player]),
+        npc=PlayerState(hand=[opponent, next_npc]),
+    )
+
+    state = resolve_round(state, konomi, opponent)
+
+    assert state.player.point_modifier == 3
+    assert state.current_battle.player_point == 17
+    assert state.current_battle.outcome == RoundOutcome.WIN
+    assert state.player.next_round_point_modifier == 3
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.player.point_modifier == 3
+    assert next_state.player.next_round_point_modifier == 0
+
+
+def test_buff_snowball_applies_current_round_only_when_not_won():
+    konomi = Card(
+        "card_39",
+        "このみ",
+        "このみ",
+        Janken.PAPER,
+        14,
+        Effect(EffectType.BUFF_SNOWBALL, "this +3 and win next +3", 3),
+    )
+    opponent = Card("n1", "相手", "あいて", Janken.PAPER, 18, None)
+    next_player = Card("p2", "p2", "ぴー2", Janken.ROCK, 5, None)
+    next_npc = Card("n2", "n2", "えぬ2", Janken.SCISSORS, 5, None)
+    state = GameState(
+        player=PlayerState(hand=[konomi, next_player]),
+        npc=PlayerState(hand=[opponent, next_npc]),
+    )
+
+    state = resolve_round(state, konomi, opponent)
+
+    assert state.player.point_modifier == 3
+    assert state.current_battle.player_point == 17
+    assert state.current_battle.outcome == RoundOutcome.LOSE
+    assert state.player.next_round_point_modifier == 0
+
+    next_state = proceed_to_next(state)
+    assert next_state.round_number == 2
+    assert next_state.player.point_modifier == 0
+
+
 def test_conditional_debuff_next_is_applied_only_on_next_round_for_npc_side():
     subaru = Card(
         "c47",

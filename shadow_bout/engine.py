@@ -203,6 +203,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         revealed_this_round_side=None,
         pending_conditional_debuff_on_loss=(),
         pending_draw_on_win=(),
+        pending_next_round_buff_on_win=(),
         point_match_effects=(),
     )
 
