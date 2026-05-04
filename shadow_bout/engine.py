@@ -212,6 +212,7 @@ def reset_round_state(game_state: GameState) -> GameState:
         pending_next_round_buff_on_win=(),
         point_match_effects=(),
         battle_janken_overrides=(),
+        win_condition_winner=None,
     )
 
 

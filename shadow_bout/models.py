@@ -186,3 +186,4 @@ class GameState:
     pending_next_round_buff_on_win: tuple[tuple[Side, int], ...] = ()
     point_match_effects: tuple[PointMatchEffect, ...] = ()
     battle_janken_overrides: tuple[BattleJankenOverride, ...] = ()
+    win_condition_winner: Side | None = None

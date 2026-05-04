@@ -807,6 +807,47 @@ def effect_steal_hand(state: GameState, side: Side, card: Card) -> GameState:
     )
 
 
+@register("win_condition")
+def effect_win_condition(state: GameState, side: Side, card: Card) -> GameState:
+    own_state = get_player_state(state, side)
+    opp_side = get_opponent_side(side)
+    opp_state = get_player_state(state, opp_side)
+
+    own_top = own_state.deck[0] if own_state.deck else None
+    opp_top = opp_state.deck[0] if opp_state.deck else None
+
+    if own_top is not None:
+        state = update_player(state, side, deck=own_state.deck[1:] + [own_top])
+    if opp_top is not None:
+        state = update_player(state, opp_side, deck=opp_state.deck[1:] + [opp_top])
+
+    if own_top is None or opp_top is None:
+        return replace(
+            state,
+            battle_log=state.battle_log
+            + [f"{card.name}の効果発動: 山札が不足しているため不発"],
+        )
+
+    revealed_jankens = {own_top.janken, opp_top.janken}
+    reveal_log = (
+        f"{card.name}の効果発動: 山札の上から自分は{own_top.name}"
+        f"({JANKEN_NAMES[own_top.janken]})、相手は{opp_top.name}"
+        f"({JANKEN_NAMES[opp_top.janken]})を公開し山札の下へ戻した"
+    )
+
+    if revealed_jankens == {Janken.PAPER, Janken.SCISSORS}:
+        return replace(
+            state,
+            win_condition_winner=side,
+            battle_log=state.battle_log + [f"{reveal_log}。勝利条件成立"],
+        )
+
+    return replace(
+        state,
+        battle_log=state.battle_log + [f"{reveal_log}。勝利条件不成立"],
+    )
+
+
 @register("buff_dynamic")
 def effect_buff_dynamic(state: GameState, side: Side, card: Card) -> GameState:
     p_state = get_player_state(state, side)
@@ -1426,6 +1467,7 @@ def effect_restart(state: GameState, side: Side, card: Card) -> GameState:
         pending_next_round_buff_on_win=(),
         point_match_effects=(),
         battle_janken_overrides=(),
+        win_condition_winner=None,
     )
 
 
