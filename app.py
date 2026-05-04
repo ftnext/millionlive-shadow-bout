@@ -17,6 +17,7 @@ from shadow_bout import (
     resolve_npc_pending_effects_stepwise,
     resume_round_effect_stepwise,
     select_card_stepwise,
+    select_random_deck,
     start_game,
 )
 from shadow_bout.effects import calculate_effective_point
@@ -30,13 +31,10 @@ CARD_IDS = [
     "card_25",
     "card_15",
     "card_38",
-    "card_33",
-    "card_03",
     "card_02",
     "card_08",
     "card_06",
     "card_44",
-    "card_49",
     "card_50",
     "card_05",
 ]
@@ -654,11 +652,46 @@ def main():
     with col1:
         if game_state.phase == Phase.START:
             st.write("NPCとの陰界戦戯を開始します！")
+            st.markdown(
+                """
+                <style>
+                .st-key-engage_random button {
+                    background-color: #2563eb;
+                    color: #ffffff;
+                    border: 1px solid #1d4ed8;
+                }
+                .st-key-engage_random button:hover {
+                    background-color: #1d4ed8;
+                    color: #ffffff;
+                    border: 1px solid #1e3a8a;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
             if st.button(
-                "シャドウバウト・エンゲージ", type="primary", use_container_width=True
+                "シャドウバウト・エンゲージ（固定13枚）",
+                type="primary",
+                use_container_width=True,
+                key="engage_fixed",
             ):
                 clear_reorder_widget_state()
+                st.session_state.game_mode = "fixed"
                 st.session_state.game_state = start_game(st.session_state.deck)
+                st.session_state.selected_card_id = None
+                st.rerun()
+            if st.button(
+                "シャドウバウト・エンゲージ（ランダム13枚）",
+                use_container_width=True,
+                key="engage_random",
+            ):
+                clear_reorder_widget_state()
+                p_deck = select_random_deck(13)
+                n_deck = select_random_deck(13)
+                st.session_state.game_mode = "random"
+                st.session_state.player_deck = p_deck
+                st.session_state.npc_deck = n_deck
+                st.session_state.game_state = start_game(p_deck, n_deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
 
@@ -867,7 +900,13 @@ def main():
 
             if st.button("もう一度遊ぶ", use_container_width=True):
                 clear_reorder_widget_state()
-                st.session_state.game_state = start_game(st.session_state.deck)
+                if st.session_state.get("game_mode") == "random":
+                    st.session_state.game_state = start_game(
+                        st.session_state.player_deck,
+                        st.session_state.npc_deck,
+                    )
+                else:
+                    st.session_state.game_state = start_game(st.session_state.deck)
                 st.session_state.selected_card_id = None
                 st.rerun()
 

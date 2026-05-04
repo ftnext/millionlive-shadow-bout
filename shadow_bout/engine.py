@@ -417,10 +417,13 @@ def _choose_npc_wildcard_janken(
     return _coerce_wildcard_janken(choose_effect(choices, game_state), Side.NPC)
 
 
-def init_game(deck: list[Card]) -> GameState:
-    """デッキをシャッフルし、手札5枚を配布した GameState を返す。"""
+def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
+    """デッキをシャッフルし、手札5枚を配布した GameState を返す。
+
+    npc_deck を渡すと NPC は別デッキで初期化される。省略時は同一デッキを共有。
+    """
     p_deck = list(deck)
-    n_deck = list(deck)
+    n_deck = list(deck if npc_deck is None else npc_deck)
     random.shuffle(p_deck)
     random.shuffle(n_deck)
 
@@ -436,8 +439,8 @@ def init_game(deck: list[Card]) -> GameState:
     )
 
 
-def start_game(deck: list[Card]) -> GameState:
-    state = init_game(deck)
+def start_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
+    state = init_game(deck, npc_deck)
     return replace(state, phase=Phase.SELECT)
 
 
