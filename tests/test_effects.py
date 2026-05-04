@@ -787,6 +787,34 @@ def test_ami_restart_clears_pending_conditional_debuff_on_loss():
     assert state.pending_conditional_debuff_on_loss == ()
 
 
+def test_ami_restart_clears_pending_snowball_buff_on_win():
+    snowball = Card(
+        "snowball",
+        "このみ効果",
+        "このみこうか",
+        Janken.SCISSORS,
+        10,
+        Effect(EffectType.BUFF_SNOWBALL, "this +3 and win next +3", 3),
+    )
+    ami = Card(
+        "c11",
+        "亜美",
+        "あみ",
+        Janken.SCISSORS,
+        12,
+        Effect(EffectType.RESTART, "restart", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[snowball]),
+        npc=PlayerState(hand=[ami]),
+    )
+
+    state = resolve_round(state, snowball, ami)
+
+    assert state.phase == Phase.SELECT
+    assert state.pending_next_round_buff_on_win == ()
+
+
 def test_ami_consecutive_restart():
     # 5. 亜美の連続使用不可
     ami = Card(
