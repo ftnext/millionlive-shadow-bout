@@ -50,7 +50,7 @@ def get_battle_janken_override(
 
 def get_effective_janken(state: GameState, side: Side, card: Card) -> Janken:
     battle_card = get_battle_card(state, side)
-    if battle_card is not None and battle_card.id == card.id:
+    if battle_card is None or battle_card.id == card.id:
         battle_override = get_battle_janken_override(state, side, card)
         if battle_override is not None:
             return battle_override
@@ -60,9 +60,9 @@ def get_effective_janken(state: GameState, side: Side, card: Card) -> Janken:
 
 
 def set_battle_janken_override(
-    state: GameState, side: Side, janken: Janken
+    state: GameState, side: Side, janken: Janken, card: Card | None = None
 ) -> GameState:
-    battle_card = get_battle_card(state, side)
+    battle_card = card or get_battle_card(state, side)
     if battle_card is None:
         return state
 

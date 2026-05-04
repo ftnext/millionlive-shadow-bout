@@ -11,8 +11,11 @@ from shadow_bout.engine import (
     select_card,
 )
 from shadow_bout.models import (
+    BattleJankenOverride,
     BattleResult,
     Card,
+    Effect,
+    EffectType,
     GameState,
     Janken,
     JankenResult,
@@ -37,6 +40,11 @@ def mock_cards():
 class FirstCardStrategy:
     def select_card(self, hand, game_state):
         return hand[0]
+
+
+class PaperWildcardStrategy(FirstCardStrategy):
+    def choose_effect(self, choices, game_state):
+        return Janken.PAPER.value
 
 
 def test_select_card_rejects_banned_player_card(mock_cards):
@@ -135,6 +143,69 @@ def test_judge_janken(mock_cards):
     assert judge_janken(p, r) == JankenResult.WIN
     assert judge_janken(r, p) == JankenResult.LOSE
     assert judge_janken(r, r) == JankenResult.DRAW
+
+
+@pytest.mark.parametrize(
+    ("declared_janken", "npc_janken"),
+    [
+        (Janken.ROCK, Janken.SCISSORS),
+        (Janken.SCISSORS, Janken.PAPER),
+        (Janken.PAPER, Janken.ROCK),
+    ],
+)
+def test_resolve_round_wildcard_uses_declared_janken(declared_janken, npc_janken):
+    momoko = Card(
+        "card_49",
+        "桃子",
+        "ももこ",
+        Janken.WILDCARD,
+        6,
+        Effect(EffectType.WILDCARD, "wildcard", None),
+    )
+    npc_card = Card("npc", "NPC", "えぬぴーしー", npc_janken, 10)
+    state = GameState(
+        player=PlayerState(hand=[momoko]),
+        npc=PlayerState(hand=[npc_card]),
+        phase=Phase.SELECT,
+    )
+
+    next_state = resolve_round(
+        state,
+        momoko,
+        npc_card,
+        player_wildcard_janken=declared_janken,
+    )
+
+    assert next_state.current_battle.janken_result == JankenResult.WIN
+    assert next_state.current_battle.outcome == RoundOutcome.WIN
+    assert next_state.battle_janken_overrides == (
+        BattleJankenOverride(Side.PLAYER, momoko.id, declared_janken),
+    )
+
+
+def test_select_card_auto_declares_npc_wildcard():
+    player_card = Card("player", "Player", "ぷれいやー", Janken.ROCK, 10)
+    momoko = Card(
+        "card_49",
+        "桃子",
+        "ももこ",
+        Janken.WILDCARD,
+        6,
+        Effect(EffectType.WILDCARD, "wildcard", None),
+    )
+    state = GameState(
+        player=PlayerState(hand=[player_card]),
+        npc=PlayerState(hand=[momoko]),
+        phase=Phase.SELECT,
+    )
+
+    next_state = select_card(state, player_card, PaperWildcardStrategy())
+
+    assert next_state.current_battle.janken_result == JankenResult.LOSE
+    assert next_state.current_battle.outcome == RoundOutcome.LOSE
+    assert next_state.battle_janken_overrides == (
+        BattleJankenOverride(Side.NPC, momoko.id, Janken.PAPER),
+    )
 
 
 def test_compare_points(mock_cards):

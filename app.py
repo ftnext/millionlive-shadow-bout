@@ -35,11 +35,22 @@ CARD_IDS = [
     "card_08",
     "card_06",
     "card_44",
+    "card_49",
     "card_50",
     "card_05",
 ]
 
-JANKEN_ICONS = {Janken.ROCK: "✊", Janken.SCISSORS: "✌️", Janken.PAPER: "✋"}
+JANKEN_ICONS = {
+    Janken.ROCK: "✊",
+    Janken.SCISSORS: "✌️",
+    Janken.PAPER: "✋",
+    Janken.WILDCARD: "🃏",
+}
+WILDCARD_JANKEN_OPTIONS = {
+    "グー": Janken.ROCK,
+    "チョキ": Janken.SCISSORS,
+    "パー": Janken.PAPER,
+}
 
 st.set_page_config(page_title="Shadow Bout v0.2", layout="wide")
 
@@ -766,8 +777,18 @@ def main():
                     st.markdown("---")
                     if selected_card:
                         st.caption(f"選択中: {render_card_info(selected_card)}")
+                        wildcard_janken = None
+                        if selected_card.janken == Janken.WILDCARD:
+                            wildcard_label = st.radio(
+                                "宣言するマーク",
+                                list(WILDCARD_JANKEN_OPTIONS),
+                                horizontal=True,
+                                key="wildcard_janken_label",
+                            )
+                            wildcard_janken = WILDCARD_JANKEN_OPTIONS[wildcard_label]
                     else:
                         st.caption("カードを1枚選んでください。")
+                        wildcard_janken = None
 
                     if st.button(
                         "エンゲージ",
@@ -779,6 +800,7 @@ def main():
                             game_state,
                             selected_card,
                             st.session_state.npc_strategy,
+                            wildcard_janken=wildcard_janken,
                         )
                         st.session_state.selected_card_id = None
                         st.rerun()
