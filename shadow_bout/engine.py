@@ -123,9 +123,7 @@ def apply_battle_result(game_state: GameState, result: BattleResult) -> GameStat
         draw_stock=new_n_stock,
     )
 
-    completed = CompletedRound(
-        round_number=game_state.round_number, battle=result
-    )
+    completed = CompletedRound(round_number=game_state.round_number, battle=result)
     return replace(
         game_state,
         player=new_player,
@@ -427,15 +425,54 @@ def _choose_npc_wildcard_janken(
     return _coerce_wildcard_janken(choose_effect(choices, game_state), Side.NPC)
 
 
-def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
+def _ensure_in_top(
+    deck: list[Card], required: list[Card] | None, top_n: int = 5
+) -> list[Card]:
+    """required の各カードが deck[:top_n] に確実に入るよう、必要なら top_n 内のカードと入れ替える。
+
+    required にあるが deck に存在しないカードは無視する。required 同士の入れ替えは行わない。
+    """
+    if not required:
+        return deck
+    deck = list(deck)
+    required_ids = {c.id for c in required}
+    top = deck[:top_n]
+    rest = deck[top_n:]
+    top_ids = {c.id for c in top}
+    for card in required:
+        if card.id in top_ids:
+            continue
+        rest_idx = next((i for i, c in enumerate(rest) if c.id == card.id), None)
+        if rest_idx is None:
+            continue
+        swap_candidates = [i for i, c in enumerate(top) if c.id not in required_ids]
+        if not swap_candidates:
+            continue
+        top_idx = random.choice(swap_candidates)
+        top[top_idx], rest[rest_idx] = rest[rest_idx], top[top_idx]
+        top_ids = {c.id for c in top}
+    return top + rest
+
+
+def init_game(
+    deck: list[Card],
+    npc_deck: list[Card] | None = None,
+    player_must_in_hand: list[Card] | None = None,
+    npc_must_in_hand: list[Card] | None = None,
+) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。
 
     npc_deck を渡すと NPC は別デッキで初期化される。省略時は同一デッキを共有。
+    player_must_in_hand / npc_must_in_hand を指定すると、各サイドの初期手札に
+    必ずそれらのカードが含まれるよう、シャッフル後に入れ替えを行う。
     """
     p_deck = list(deck)
     n_deck = list(deck if npc_deck is None else npc_deck)
     random.shuffle(p_deck)
     random.shuffle(n_deck)
+
+    p_deck = _ensure_in_top(p_deck, player_must_in_hand, top_n=5)
+    n_deck = _ensure_in_top(n_deck, npc_must_in_hand, top_n=5)
 
     p_hand = p_deck[:5]
     p_deck = p_deck[5:]
@@ -449,8 +486,18 @@ def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState
     )
 
 
-def start_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
-    state = init_game(deck, npc_deck)
+def start_game(
+    deck: list[Card],
+    npc_deck: list[Card] | None = None,
+    player_must_in_hand: list[Card] | None = None,
+    npc_must_in_hand: list[Card] | None = None,
+) -> GameState:
+    state = init_game(
+        deck,
+        npc_deck,
+        player_must_in_hand=player_must_in_hand,
+        npc_must_in_hand=npc_must_in_hand,
+    )
     return replace(state, phase=Phase.SELECT)
 
 
