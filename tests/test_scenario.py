@@ -193,14 +193,14 @@ def test_scripted_strategy_select_card_falls_back_when_unspecified():
     assert selected.id == "card_01"
 
 
-def test_scripted_strategy_select_card_falls_back_when_id_missing_from_hand():
+def test_scripted_strategy_select_card_raises_when_id_missing_from_hand():
     cards = [_build_card("card_01")]
     scenario = Scenario(
         rounds=(ScenarioRound(npc_card_id="card_99"),),
     )
     strategy = ScriptedStrategy(scenario)
-    selected = strategy.select_card(cards, _make_game_state(round_number=1))
-    assert selected.id == "card_01"
+    with pytest.raises(ValueError, match="not in NPC hand"):
+        strategy.select_card(cards, _make_game_state(round_number=1))
 
 
 def test_scripted_strategy_declare_wildcard_uses_spec():

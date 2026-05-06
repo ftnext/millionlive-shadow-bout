@@ -341,10 +341,15 @@ def _apply_scenario_preselect(game_state):
     spec = scenario.rounds[idx]
     if spec is None:
         return
-    if spec.player_card_id and any(
-        c.id == spec.player_card_id for c in game_state.player.hand
-    ):
-        st.session_state.selected_card_id = spec.player_card_id
+    if spec.player_card_id:
+        if any(c.id == spec.player_card_id for c in game_state.player.hand):
+            st.session_state.selected_card_id = spec.player_card_id
+        else:
+            st.warning(
+                f"シナリオR{game_state.round_number}: 指定 player_card "
+                f"'{spec.player_card_id}' は手札にないためプリセレクトを"
+                "スキップしました。"
+            )
     if spec.player_wildcard is not None:
         st.session_state.wildcard_janken_label = WILDCARD_JANKEN_LABELS[
             spec.player_wildcard

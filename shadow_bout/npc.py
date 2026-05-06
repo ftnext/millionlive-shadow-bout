@@ -51,8 +51,13 @@ class ScriptedStrategy:
         spec = self._round_spec(game_state)
         if spec and spec.npc_card_id:
             match = next((c for c in hand if c.id == spec.npc_card_id), None)
-            if match is not None:
-                return match
+            if match is None:
+                raise ValueError(
+                    f"scripted npc_card '{spec.npc_card_id}' not in NPC hand at "
+                    f"round {game_state.round_number}; check the scenario's "
+                    f"hand setup or earlier rounds"
+                )
+            return match
         return self._fallback.select_card(hand, game_state)
 
     def declare_wildcard_janken(self, choices: list[str], game_state: GameState) -> str:
