@@ -29,6 +29,7 @@ from shadow_bout.models import (
     Side,
 )
 from shadow_bout.npc import NpcStrategy
+from shadow_bout.scenario import Scenario
 
 JANKEN_ICONS = {
     Janken.ROCK: "✊",
@@ -417,12 +418,10 @@ def _choose_npc_wildcard_janken(
     if npc_card.janken != Janken.WILDCARD:
         return None
 
-    choose_effect = getattr(npc_strategy, "choose_effect", None)
-    if choose_effect is None:
-        return random.choice(WILDCARD_DECLARABLE_JANKENS)
-
     choices = [janken.value for janken in WILDCARD_DECLARABLE_JANKENS]
-    return _coerce_wildcard_janken(choose_effect(choices, game_state), Side.NPC)
+    return _coerce_wildcard_janken(
+        npc_strategy.declare_wildcard_janken(choices, game_state), Side.NPC
+    )
 
 
 def _ensure_in_top(
@@ -499,6 +498,29 @@ def start_game(
         npc_must_in_hand=npc_must_in_hand,
     )
     return replace(state, phase=Phase.SELECT)
+
+
+def _resolve_required_cards(deck: list[Card], required_ids: list[str]) -> list[Card]:
+    deck_by_id = {card.id: card for card in deck}
+    resolved: list[Card] = []
+    for card_id in required_ids:
+        if card_id not in deck_by_id:
+            raise ValueError(f"required card not found in deck: {card_id}")
+        resolved.append(deck_by_id[card_id])
+    return resolved
+
+
+def start_game_with_scenario(deck: list[Card], scenario: Scenario) -> GameState:
+    """シナリオの required hand を満たして Phase.SELECT で開始する。"""
+    return start_game(
+        deck,
+        player_must_in_hand=_resolve_required_cards(
+            deck, list(scenario.player_hand_required)
+        ),
+        npc_must_in_hand=_resolve_required_cards(
+            deck, list(scenario.npc_hand_required)
+        ),
+    )
 
 
 def _is_playable_under_constraints(player_state: PlayerState, card: Card) -> bool:

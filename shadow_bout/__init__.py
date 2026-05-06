@@ -10,6 +10,7 @@ from shadow_bout.engine import (
     select_card,
     select_card_stepwise,
     start_game,
+    start_game_with_scenario,
 )
 from shadow_bout.models import (
     Card,
@@ -21,7 +22,8 @@ from shadow_bout.models import (
     RoundOutcome,
     Side,
 )
-from shadow_bout.npc import RandomStrategy
+from shadow_bout.npc import RandomStrategy, ScriptedStrategy
+from shadow_bout.scenario import Scenario, ScenarioRound, load_scenario
 
 __all__ = [
     "Card",
@@ -32,7 +34,10 @@ __all__ = [
     "JankenResult",
     "RoundOutcome",
     "PendingEffectContext",
+    "Scenario",
+    "ScenarioRound",
     "start_game",
+    "start_game_with_scenario",
     "select_card",
     "select_card_stepwise",
     "proceed_to_next",
@@ -43,6 +48,8 @@ __all__ = [
     "continue_round_effect_step",
     "calculate_final_score",
     "load_deck",
+    "load_scenario",
     "select_random_deck",
     "RandomStrategy",
+    "ScriptedStrategy",
 ]

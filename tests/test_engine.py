@@ -49,6 +49,9 @@ class PaperWildcardStrategy(FirstCardStrategy):
     def choose_effect(self, choices, game_state):
         return Janken.PAPER.value
 
+    def declare_wildcard_janken(self, choices, game_state):
+        return Janken.PAPER.value
+
 
 def test_select_card_rejects_banned_player_card(mock_cards):
     p1, p2, n1, _ = mock_cards

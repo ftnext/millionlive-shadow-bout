@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Shadow Bout dev mode scenario file (local only — must not be deployed)
+dev_scenario.json
