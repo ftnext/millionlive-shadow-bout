@@ -41,6 +41,53 @@ CARD_IDS = [
     "card_05",
 ]
 
+# 13thLIVE DAY1 全力援走 出演キャスト（主演: 高山紗代子）
+ZENRYOKU_CARD_IDS = [
+    "card_27",  # 紗代子（主演）
+    "card_14",  # 未来
+    "card_16",  # 翼
+    "card_18",  # エレナ
+    "card_21",  # まつり
+    "card_23",  # 茜
+    "card_30",  # 育
+    "card_36",  # 可奈
+    "card_37",  # 奈緒
+    "card_40",  # 環
+    "card_42",  # 美也
+    "card_43",  # のり子
+    "card_45",  # 可憐
+    "card_48",  # 麗花
+]
+
+# 13thLIVE DAY2 Grand bal masqué 出演キャスト（主演: 二階堂千鶴）
+GRAND_BAL_CARD_IDS = [
+    "card_38",  # 千鶴（主演）
+    "card_19",  # 美奈子
+    "card_25",  # ロコ
+    "card_31",  # 朋花
+    "card_39",  # このみ
+    "card_41",  # 風花
+    "card_44",  # 瑞希
+    "card_46",  # 莉緒
+    "card_47",  # 昴
+    "card_49",  # 桃子
+    "card_50",  # ジュリア
+    "card_51",  # 紬
+    "card_52",  # 歌織
+]
+
+DECK_POOL_NAMA_HAISHIN = "生配信ver（13枚）"
+DECK_POOL_ZENRYOKU = "全力援走（DAY1・14枚）"
+DECK_POOL_GRAND_BAL = "Grand bal masqué（DAY2・13枚）"
+
+# プール名 → (player_card_ids, npc_card_ids)。主演公演同士は対戦相手として入れ替え。
+DECK_POOLS: dict[str, tuple[list[str], list[str]]] = {
+    DECK_POOL_NAMA_HAISHIN: (CARD_IDS, CARD_IDS),
+    DECK_POOL_ZENRYOKU: (ZENRYOKU_CARD_IDS, GRAND_BAL_CARD_IDS),
+    DECK_POOL_GRAND_BAL: (GRAND_BAL_CARD_IDS, ZENRYOKU_CARD_IDS),
+}
+SHOEN_POOL_NAMES = {DECK_POOL_ZENRYOKU, DECK_POOL_GRAND_BAL}
+
 JANKEN_ICONS = {
     Janken.ROCK: "✊",
     Janken.SCISSORS: "✌️",
@@ -737,15 +784,59 @@ def main():
                 """,
                 unsafe_allow_html=True,
             )
+            pool_label = st.selectbox(
+                "デッキプール（固定）",
+                list(DECK_POOLS.keys()),
+                index=0,
+                key="deck_pool_label",
+            )
+            player_ids, npc_ids = DECK_POOLS[pool_label]
+            if pool_label in SHOEN_POOL_NAMES:
+                opponent_label = (
+                    DECK_POOL_GRAND_BAL
+                    if pool_label == DECK_POOL_ZENRYOKU
+                    else DECK_POOL_ZENRYOKU
+                )
+                st.caption(
+                    f"⚠ 主演公演プールは13枚を超えてもよしとします（無法ルール）。"
+                    f" 対戦相手は **{opponent_label}**、主演は必ず初期手札に入ります。"
+                )
+
             if st.button(
-                "シャドウバウト・エンゲージ（固定13枚）",
+                "シャドウバウト・エンゲージ（固定）",
                 type="primary",
                 use_container_width=True,
                 key="engage_fixed",
             ):
                 clear_reorder_widget_state()
-                st.session_state.game_mode = "fixed"
-                st.session_state.game_state = start_game(st.session_state.deck)
+                p_deck = load_deck(player_ids)
+                n_deck = load_deck(npc_ids)
+                if pool_label in SHOEN_POOL_NAMES:
+                    p_must = [p_deck[0]]
+                    n_must = [n_deck[0]]
+                    st.session_state.game_mode = (
+                        "fixed_zenryoku"
+                        if pool_label == DECK_POOL_ZENRYOKU
+                        else "fixed_grandbal"
+                    )
+                    npc_deck_arg = n_deck
+                else:
+                    p_must, n_must = None, None
+                    st.session_state.game_mode = "fixed"
+                    npc_deck_arg = None
+
+                st.session_state.player_deck = p_deck
+                st.session_state.npc_deck = n_deck
+                st.session_state.player_must_in_hand = p_must
+                st.session_state.npc_must_in_hand = n_must
+                st.session_state.deck = p_deck
+
+                st.session_state.game_state = start_game(
+                    p_deck,
+                    npc_deck_arg,
+                    player_must_in_hand=p_must,
+                    npc_must_in_hand=n_must,
+                )
                 st.session_state.selected_card_id = None
                 st.rerun()
             if st.button(
@@ -985,10 +1076,18 @@ def main():
 
             if st.button("もう一度遊ぶ", use_container_width=True):
                 clear_reorder_widget_state()
-                if st.session_state.get("game_mode") == "random":
+                mode = st.session_state.get("game_mode")
+                if mode == "random":
                     st.session_state.game_state = start_game(
                         st.session_state.player_deck,
                         st.session_state.npc_deck,
+                    )
+                elif mode in {"fixed_zenryoku", "fixed_grandbal"}:
+                    st.session_state.game_state = start_game(
+                        st.session_state.player_deck,
+                        st.session_state.npc_deck,
+                        player_must_in_hand=st.session_state.player_must_in_hand,
+                        npc_must_in_hand=st.session_state.npc_must_in_hand,
                     )
                 else:
                     st.session_state.game_state = start_game(st.session_state.deck)
