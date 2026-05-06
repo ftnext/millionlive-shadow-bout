@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from shadow_bout.engine import init_game_with_required, start_game_with_scenario
+from shadow_bout.engine import start_game_with_scenario
 from shadow_bout.models import Card, GameState, Janken, PlayerState
 from shadow_bout.npc import RandomStrategy, ScriptedStrategy
 from shadow_bout.scenario import Scenario, ScenarioRound, load_scenario
@@ -140,37 +140,7 @@ def test_load_scenario_rejects_unknown_round_field(tmp_path):
         load_scenario(path, deck_card_ids=DECK_IDS)
 
 
-def test_init_game_with_required_places_required_in_hand():
-    deck = _build_deck()
-    required = ["card_07", "card_13"]
-    random.seed(0)
-    state = init_game_with_required(deck, player_required_hand=required)
-    hand_ids = {card.id for card in state.player.hand}
-    assert {"card_07", "card_13"}.issubset(hand_ids)
-    assert len(state.player.hand) == 5
-    assert len(state.player.deck) == len(deck) - 5
-    all_ids = {card.id for card in state.player.hand + state.player.deck}
-    assert all_ids == set(DECK_IDS)
-
-
-def test_init_game_with_required_npc_independent_pool():
-    deck = _build_deck()
-    state = init_game_with_required(
-        deck,
-        player_required_hand=["card_01"],
-        npc_required_hand=["card_02"],
-    )
-    assert any(c.id == "card_01" for c in state.player.hand)
-    assert any(c.id == "card_02" for c in state.npc.hand)
-
-
-def test_init_game_with_required_unknown_card_raises():
-    deck = _build_deck()
-    with pytest.raises(ValueError, match="required card not found"):
-        init_game_with_required(deck, player_required_hand=["card_99"])
-
-
-def test_start_game_with_scenario_sets_select_phase():
+def test_start_game_with_scenario_sets_select_phase_and_required_in_hand():
     deck = _build_deck()
     scenario = Scenario(
         player_hand_required=("card_01",),
@@ -181,6 +151,24 @@ def test_start_game_with_scenario_sets_select_phase():
     assert state.phase.value == "select"
     assert any(c.id == "card_01" for c in state.player.hand)
     assert any(c.id == "card_02" for c in state.npc.hand)
+    assert len(state.player.hand) == 5
+    assert len(state.npc.hand) == 5
+
+
+def test_start_game_with_scenario_unknown_required_raises():
+    deck = _build_deck()
+    scenario = Scenario(player_hand_required=("card_99",))
+    with pytest.raises(ValueError, match="required card not found"):
+        start_game_with_scenario(deck, scenario)
+
+
+def test_start_game_with_scenario_multiple_required_in_hand():
+    deck = _build_deck()
+    scenario = Scenario(player_hand_required=("card_07", "card_13"))
+    random.seed(0)
+    state = start_game_with_scenario(deck, scenario)
+    hand_ids = {card.id for card in state.player.hand}
+    assert {"card_07", "card_13"}.issubset(hand_ids)
 
 
 def _make_game_state(round_number: int = 1) -> GameState:

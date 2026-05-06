@@ -424,15 +424,54 @@ def _choose_npc_wildcard_janken(
     )
 
 
-def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
+def _ensure_in_top(
+    deck: list[Card], required: list[Card] | None, top_n: int = 5
+) -> list[Card]:
+    """required の各カードが deck[:top_n] に確実に入るよう、必要なら top_n 内のカードと入れ替える。
+
+    required にあるが deck に存在しないカードは無視する。required 同士の入れ替えは行わない。
+    """
+    if not required:
+        return deck
+    deck = list(deck)
+    required_ids = {c.id for c in required}
+    top = deck[:top_n]
+    rest = deck[top_n:]
+    top_ids = {c.id for c in top}
+    for card in required:
+        if card.id in top_ids:
+            continue
+        rest_idx = next((i for i, c in enumerate(rest) if c.id == card.id), None)
+        if rest_idx is None:
+            continue
+        swap_candidates = [i for i, c in enumerate(top) if c.id not in required_ids]
+        if not swap_candidates:
+            continue
+        top_idx = random.choice(swap_candidates)
+        top[top_idx], rest[rest_idx] = rest[rest_idx], top[top_idx]
+        top_ids = {c.id for c in top}
+    return top + rest
+
+
+def init_game(
+    deck: list[Card],
+    npc_deck: list[Card] | None = None,
+    player_must_in_hand: list[Card] | None = None,
+    npc_must_in_hand: list[Card] | None = None,
+) -> GameState:
     """デッキをシャッフルし、手札5枚を配布した GameState を返す。
 
     npc_deck を渡すと NPC は別デッキで初期化される。省略時は同一デッキを共有。
+    player_must_in_hand / npc_must_in_hand を指定すると、各サイドの初期手札に
+    必ずそれらのカードが含まれるよう、シャッフル後に入れ替えを行う。
     """
     p_deck = list(deck)
     n_deck = list(deck if npc_deck is None else npc_deck)
     random.shuffle(p_deck)
     random.shuffle(n_deck)
+
+    p_deck = _ensure_in_top(p_deck, player_must_in_hand, top_n=5)
+    n_deck = _ensure_in_top(n_deck, npc_must_in_hand, top_n=5)
 
     p_hand = p_deck[:5]
     p_deck = p_deck[5:]
@@ -446,47 +485,42 @@ def init_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState
     )
 
 
-def start_game(deck: list[Card], npc_deck: list[Card] | None = None) -> GameState:
-    state = init_game(deck, npc_deck)
+def start_game(
+    deck: list[Card],
+    npc_deck: list[Card] | None = None,
+    player_must_in_hand: list[Card] | None = None,
+    npc_must_in_hand: list[Card] | None = None,
+) -> GameState:
+    state = init_game(
+        deck,
+        npc_deck,
+        player_must_in_hand=player_must_in_hand,
+        npc_must_in_hand=npc_must_in_hand,
+    )
     return replace(state, phase=Phase.SELECT)
 
 
-def _arrange_with_required(deck: list[Card], required_ids: list[str]) -> list[Card]:
-    """deck をシャッフルした後、required_ids のカードを先頭へ集めて返す。"""
-    pool = list(deck)
-    random.shuffle(pool)
-    required: list[Card] = []
+def _resolve_required_cards(deck: list[Card], required_ids: list[str]) -> list[Card]:
+    deck_by_id = {card.id: card for card in deck}
+    resolved: list[Card] = []
     for card_id in required_ids:
-        idx = next((i for i, c in enumerate(pool) if c.id == card_id), None)
-        if idx is None:
+        if card_id not in deck_by_id:
             raise ValueError(f"required card not found in deck: {card_id}")
-        required.append(pool.pop(idx))
-    return required + pool
-
-
-def init_game_with_required(
-    deck: list[Card],
-    *,
-    player_required_hand: list[str] | None = None,
-    npc_required_hand: list[str] | None = None,
-) -> GameState:
-    """deck をシャッフルし、各 required_hand を初期手札に確実に含めて配布する。"""
-    p_pool = _arrange_with_required(deck, player_required_hand or [])
-    n_pool = _arrange_with_required(deck, npc_required_hand or [])
-    return GameState(
-        player=PlayerState(hand=p_pool[:5], deck=p_pool[5:]),
-        npc=PlayerState(hand=n_pool[:5], deck=n_pool[5:]),
-    )
+        resolved.append(deck_by_id[card_id])
+    return resolved
 
 
 def start_game_with_scenario(deck: list[Card], scenario: Scenario) -> GameState:
-    """シナリオの required_hand を満たして Phase.SELECT で開始する。"""
-    state = init_game_with_required(
+    """シナリオの required hand を満たして Phase.SELECT で開始する。"""
+    return start_game(
         deck,
-        player_required_hand=list(scenario.player_hand_required),
-        npc_required_hand=list(scenario.npc_hand_required),
+        player_must_in_hand=_resolve_required_cards(
+            deck, list(scenario.player_hand_required)
+        ),
+        npc_must_in_hand=_resolve_required_cards(
+            deck, list(scenario.npc_hand_required)
+        ),
     )
-    return replace(state, phase=Phase.SELECT)
 
 
 def _is_playable_under_constraints(player_state: PlayerState, card: Card) -> bool:

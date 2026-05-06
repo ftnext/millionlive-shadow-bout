@@ -2,7 +2,6 @@ from shadow_bout.cards import load_deck, select_random_deck
 from shadow_bout.engine import (
     calculate_final_score,
     continue_round_effect_step,
-    init_game_with_required,
     proceed_to_next,
     resolve_npc_pending_effects,
     resolve_npc_pending_effects_stepwise,
@@ -39,7 +38,6 @@ __all__ = [
     "ScenarioRound",
     "start_game",
     "start_game_with_scenario",
-    "init_game_with_required",
     "select_card",
     "select_card_stepwise",
     "proceed_to_next",
