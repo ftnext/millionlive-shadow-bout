@@ -109,13 +109,3 @@ def set_must_reveal_played_card(
     state: GameState, side: Side, should_reveal: bool
 ) -> GameState:
     return update_player(state, side, must_reveal_played_card=should_reveal)
-
-
-def set_must_reveal_played_card_rounds(
-    state: GameState, side: Side, rounds: int
-) -> GameState:
-    return update_player(
-        state,
-        side,
-        must_reveal_played_card_rounds=max(0, rounds),
-    )

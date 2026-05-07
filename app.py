@@ -405,14 +405,14 @@ def render_pending_effect_form(game_state):
         if variant == "karen_choose":
             choice = st.radio(
                 "可憐の効果",
-                ["activate", "skip"],
+                ["gain_points", "return_and_flip"],
                 format_func=lambda value: {
-                    "activate": "発動する（相手の公開を2ラウンド強制）",
-                    "skip": "発動しない",
+                    "gain_points": "自分のポイント+2する",
+                    "return_and_flip": "このカードを山札に戻して切り、山札の上から1枚を場に出す（戦具効果は不発）",
                 }[value],
                 horizontal=True,
             )
-            if st.button("この効果を決定", type="primary", use_container_width=True):
+            if st.button("この効果を発動", type="primary", use_container_width=True):
                 submit_effect_choice(game_state, choice)
             return
 
