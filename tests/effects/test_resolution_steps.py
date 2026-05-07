@@ -182,12 +182,12 @@ def test_resolve_npc_pending_effects_progresses_reorder_without_stop():
         Effect(EffectType.REORDER, "reorder", None),
     )
     other = Card("cx", "other", "おざー", Janken.PAPER, 14, None)
-    n1 = Card("n1", "npc1", "えぬ1", Janken.ROCK, 1)
-    n2 = Card("n2", "npc2", "えぬ2", Janken.SCISSORS, 2)
-    n3 = Card("n3", "npc3", "えぬ3", Janken.PAPER, 3)
+    p1 = Card("p1", "player1", "ぷれいやー1", Janken.ROCK, 1)
+    p2 = Card("p2", "player2", "ぷれいやー2", Janken.SCISSORS, 2)
+    p3 = Card("p3", "player3", "ぷれいやー3", Janken.PAPER, 3)
     state = GameState(
-        player=PlayerState(hand=[other]),
-        npc=PlayerState(hand=[akane], deck=[n1, n2, n3]),
+        player=PlayerState(hand=[other], deck=[p1, p2, p3]),
+        npc=PlayerState(hand=[akane]),
     )
 
     random.seed(0)
@@ -198,7 +198,7 @@ def test_resolve_npc_pending_effects_progresses_reorder_without_stop():
     state = resolve_npc_pending_effects(state, FirstChoiceStrategy())
 
     assert state.phase == Phase.REVEAL
-    assert [card.id for card in state.npc.deck] != ["n1", "n2", "n3"]
+    assert [card.id for card in state.player.deck] != ["p1", "p2", "p3"]
 
 
 def test_npc_interactive_effect_is_resolved_by_strategy():

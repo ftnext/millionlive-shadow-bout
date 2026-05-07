@@ -178,20 +178,23 @@ def _resume_salvage(state: GameState, side: Side, choice: str | None) -> GameSta
 
 
 def _resume_reorder(state: GameState, side: Side, choice: str | None) -> GameState:
-    p_state = get_player_state(state, side)
-    if not p_state.deck:
-        return _finish_interactive_effect(state, "-> 茜の効果: 並び替える山札がない")
+    opponent_side = get_opponent_side(side)
+    opponent_state = get_player_state(state, opponent_side)
+    if not opponent_state.deck:
+        return _finish_interactive_effect(
+            state, "-> 茜の効果: 並び替える相手の山札がない"
+        )
 
     selected_ids = _parse_card_ids(choice)
     ordered: list[Card] = []
     used_ids: set[str] = set()
     for card_id in selected_ids:
-        card = _find_card(p_state.deck, card_id)
+        card = _find_card(opponent_state.deck, card_id)
         if card is None or card.id in used_ids:
             continue
         ordered.append(card)
         used_ids.add(card.id)
 
-    ordered.extend(card for card in p_state.deck if card.id not in used_ids)
-    state = update_player(state, side, deck=ordered)
-    return _finish_interactive_effect(state, "-> 茜の効果: 山札の順番を入れ替えた")
+    ordered.extend(card for card in opponent_state.deck if card.id not in used_ids)
+    state = update_player(state, opponent_side, deck=ordered)
+    return _finish_interactive_effect(state, "-> 茜の効果: 相手の山札の順番を入れ替えた")

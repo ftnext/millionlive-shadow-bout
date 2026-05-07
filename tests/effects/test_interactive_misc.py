@@ -30,8 +30,8 @@ def test_resume_reorder_effect_applies_player_selected_order():
     d2 = Card("d2", "draw2", "どろー2", Janken.SCISSORS, 3)
     d3 = Card("d3", "draw3", "どろー3", Janken.PAPER, 4)
     state = GameState(
-        player=PlayerState(hand=[akane], deck=[d1, d2, d3]),
-        npc=PlayerState(hand=[other]),
+        player=PlayerState(hand=[akane]),
+        npc=PlayerState(hand=[other], deck=[d1, d2, d3]),
     )
 
     state = resolve_round(state, akane, other)
@@ -40,7 +40,7 @@ def test_resume_reorder_effect_applies_player_selected_order():
     state = resume_round_effect(state, choice="d3,d1,d2")
 
     assert state.phase == Phase.REVEAL
-    assert [card.id for card in state.player.deck] == ["d3", "d1", "d2"]
+    assert [card.id for card in state.npc.deck] == ["d3", "d1", "d2"]
 
 
 def test_resume_salvage_effect_recovers_from_discard_with_penalty():
