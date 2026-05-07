@@ -6,6 +6,7 @@ from shadow_bout.effect_handlers.common import (
 )
 from shadow_bout.effect_handlers.registry import register
 from shadow_bout.effect_utils import (
+    get_opponent_side,
     get_player_state,
 )
 from shadow_bout.models import (
@@ -155,12 +156,12 @@ def effect_salvage(state: GameState, side: Side, card: Card) -> GameState:
 
 @register("reorder")
 def effect_reorder(state: GameState, side: Side, card: Card) -> GameState:
-    p_state = get_player_state(state, side)
-    if len(p_state.deck) <= 1:
+    opponent_state = get_player_state(state, get_opponent_side(side))
+    if len(opponent_state.deck) <= 1:
         return replace(
             state,
             battle_log=state.battle_log
-            + [f"{card.name}の効果発動: 並び替える山札がないため不発"],
+            + [f"{card.name}の効果発動: 並び替える相手の山札がないため不発"],
         )
 
     ctx = PendingEffectContext(side=side, card_id=card.id, effect="reorder")
@@ -169,5 +170,6 @@ def effect_reorder(state: GameState, side: Side, card: Card) -> GameState:
     )
     return replace(
         state,
-        battle_log=state.battle_log + [f"{card.name}の効果発動: 並び替え待機中..."],
+        battle_log=state.battle_log
+        + [f"{card.name}の効果発動: 相手山札の並び替え待機中..."],
     )

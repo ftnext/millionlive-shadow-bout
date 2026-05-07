@@ -931,7 +931,8 @@ def _choose_npc_pending_effect(
         return npc_strategy.select_target(npc.discard, state).id
 
     if ctx.effect == "reorder":
-        shuffled = list(npc.deck)
+        player = get_player_state(state, Side.PLAYER)
+        shuffled = list(player.deck)
         random.shuffle(shuffled)
         return ",".join(card.id for card in shuffled)
 

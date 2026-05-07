@@ -20,7 +20,7 @@
 {"id": "card_20", "name": "恵美", "kana": "めぐみ", "janken": "rock", "basePoint": 11, "effect": {"description": "お互いに山札から2枚引く。", "type": "draw", "value": 2}}
 {"id": "card_21", "name": "まつり", "kana": "まつり", "janken": "rock", "basePoint": 19, "effect": {"description": "自分のポイント+1する。", "type": "buff", "value": 1}}
 {"id": "card_22", "name": "星梨花", "kana": "せりか", "janken": "rock", "basePoint": 13, "effect": {"description": "相手の山札の上から1枚めくり、そのカードを自分の手札に加える。", "type": "steal_draw", "value": 1}}
-{"id": "card_23", "name": "茜", "kana": "あかね", "janken": "paper", "basePoint": 13, "effect": {"description": "好きな順番で入れ替えることができる。", "type": "reorder", "value": null}}
+{"id": "card_23", "name": "茜", "kana": "あかね", "janken": "paper", "basePoint": 13, "effect": {"description": "相手の山札を全て確認し、好きな順番で入れ替えることができる。", "type": "reorder", "value": null}}
 {"id": "card_24", "name": "杏奈", "kana": "あんな", "janken": "rock", "basePoint": 17, "effect": {"description": "自分の手札を1枚選び、相手に見せることで、そのカードの戦具の効果を発動する。見せたカードは手札に戻す。", "type": "copy_hand", "value": null}}
 {"id": "card_25", "name": "ロコ", "kana": "ろこ", "janken": "rock", "basePoint": 15, "effect": {"description": "相手の手札を1枚ランダムに選ぶ。そのカードは以降公開した状態で扱う。", "type": "reveal", "value": 1}}
 {"id": "card_26", "name": "百合子", "kana": "ゆりこ", "janken": "paper", "basePoint": 15, "effect": {"description": "どちらかの効果を選んで発動する。●自分のポイント+3する。●山札から2枚引く。その後、手札を2枚選び、山札の一番下に置く。", "type": "choose", "value": null}}
