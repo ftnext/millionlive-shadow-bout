@@ -1,6 +1,9 @@
+import random
+
 from shadow_bout.effects import calculate_effective_point
 from shadow_bout.engine import (
     proceed_to_next,
+    resolve_npc_pending_effects,
     resolve_round,
     resume_round_effect,
 )
@@ -15,18 +18,23 @@ from shadow_bout.models import (
     PlayerState,
     RoundOutcome,
 )
+from tests.effects.helpers import FirstChoiceStrategy
 
 
-def test_karen_choose_activate_sets_must_reveal_on_opponent():
-    karen = Card(
-        "c45",
+def _karen() -> Card:
+    return Card(
+        "card_45",
         "可憐",
         "かれん",
-        Janken.ROCK,
-        10,
+        Janken.SCISSORS,
+        11,
         Effect(EffectType.CHOOSE, "choose", None),
     )
-    other = Card("cx", "other", "おざー", Janken.ROCK, 9, None)
+
+
+def test_karen_choose_gain_points_increments_point_modifier():
+    karen = _karen()
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
     state = GameState(
         player=PlayerState(hand=[karen]),
         npc=PlayerState(hand=[other]),
@@ -35,44 +43,72 @@ def test_karen_choose_activate_sets_must_reveal_on_opponent():
     state = resolve_round(state, karen, other)
     assert state.phase == Phase.INTERACTIVE_EFFECT
 
-    state = resume_round_effect(state, choice="activate")
+    state = resume_round_effect(state, choice="gain_points")
 
-    assert state.npc.must_reveal_played_card is False
-    assert state.npc.must_reveal_played_card_rounds == 2
+    assert state.player.point_modifier == 2
 
 
-def test_immune_blocks_karen_choose_reveal_effect_on_resume():
-    karen = Card(
-        "card_45",
-        "可憐",
-        "かれん",
+def test_karen_choose_return_and_flip_replaces_played_card_without_triggering_new_effect(
+    monkeypatch,
+):
+    karen = _karen()
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    deck_card = Card(
+        "d1",
+        "山札",
+        "やまふだ",
         Janken.SCISSORS,
-        11,
-        Effect(EffectType.CHOOSE, "choose", None),
-    )
-    emily = Card(
-        "card_32",
-        "エミリー",
-        "えみりー",
-        Janken.SCISSORS,
-        13,
-        Effect(EffectType.IMMUNE, "immune", None),
+        20,
+        Effect(EffectType.BUFF, "+5", 5),
     )
     state = GameState(
-        player=PlayerState(hand=[karen]),
-        npc=PlayerState(hand=[emily]),
+        player=PlayerState(hand=[karen], deck=[deck_card]),
+        npc=PlayerState(hand=[other]),
     )
 
-    state = resolve_round(state, karen, emily)
+    state = resolve_round(state, karen, other)
     assert state.phase == Phase.INTERACTIVE_EFFECT
 
-    state = resume_round_effect(state, choice="activate")
+    monkeypatch.setattr(random, "shuffle", lambda _seq: None)
+    state = resume_round_effect(state, choice="return_and_flip")
 
-    assert state.npc.must_reveal_played_card_rounds == 0
-    assert any(
-        "可憐の効果: 相手は戦具効果を受けないため不発" in log
-        for log in state.battle_log
+    assert state.current_battle.player_card.id == deck_card.id
+    assert state.player.point_modifier == 0
+    assert [c.id for c in state.player.deck] == [karen.id]
+
+
+def test_karen_choose_return_and_flip_with_empty_deck_keeps_karen_on_field():
+    karen = _karen()
+    other = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    state = GameState(
+        player=PlayerState(hand=[karen], deck=[]),
+        npc=PlayerState(hand=[other]),
     )
+
+    state = resolve_round(state, karen, other)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resume_round_effect(state, choice="return_and_flip")
+
+    assert state.current_battle.player_card.id == karen.id
+    assert state.player.deck == []
+    assert any("再び可憐がめくれた" in log for log in state.battle_log)
+
+
+def test_karen_choose_npc_side_uses_strategy_to_select_gain_points():
+    karen = _karen()
+    player_card = Card("cx", "other", "おざー", Janken.SCISSORS, 11, None)
+    state = GameState(
+        player=PlayerState(hand=[player_card]),
+        npc=PlayerState(hand=[karen]),
+    )
+
+    state = resolve_round(state, player_card, karen)
+    assert state.phase == Phase.INTERACTIVE_EFFECT
+
+    state = resolve_npc_pending_effects(state, FirstChoiceStrategy())
+
+    assert state.npc.point_modifier == 2
 
 
 def test_change_janken_arisa_rejudges_current_battle_mark():

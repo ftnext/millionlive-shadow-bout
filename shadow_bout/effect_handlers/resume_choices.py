@@ -1,3 +1,4 @@
+import random
 from dataclasses import replace
 
 from shadow_bout.effect_handlers.common import (
@@ -11,7 +12,6 @@ from shadow_bout.effect_handlers.registry import get_effect_handler
 from shadow_bout.effect_utils import (
     get_opponent_side,
     get_player_state,
-    set_must_reveal_played_card_rounds,
     update_player,
 )
 from shadow_bout.models import GameState, Phase, PointMatchEffect, Side
@@ -84,17 +84,43 @@ def _resume_choose(state: GameState, side: Side, choice: str | None) -> GameStat
         return _finish_interactive_effect(state, "-> 百合子の効果: ポイント+3")
 
     if variant == "karen_choose":
-        if choice != "activate":
-            return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
-        if _opponent_is_immune(state, side):
-            return _finish_interactive_effect(
-                state, "-> 可憐の効果: 相手は戦具効果を受けないため不発"
+        if choice == "gain_points":
+            state = update_player(
+                state, side, point_modifier=p_state.point_modifier + 2
             )
-        opp_side = get_opponent_side(side)
-        state = set_must_reveal_played_card_rounds(state, opp_side, rounds=2)
-        return _finish_interactive_effect(
-            state, "-> 可憐の効果: 相手は2ラウンドの間、出し札を公開"
-        )
+            return _finish_interactive_effect(state, "-> 可憐の効果: ポイント+2")
+
+        if choice == "return_and_flip":
+            res = state.current_battle
+            if res is None:
+                return _finish_interactive_effect(
+                    state, "-> 可憐の効果: 場のカードがないため不発"
+                )
+
+            old_card = res.player_card if side == Side.PLAYER else res.npc_card
+
+            shuffled = p_state.deck + [old_card]
+            random.shuffle(shuffled)
+            new_card = shuffled[0]
+            new_deck = shuffled[1:]
+
+            if side == Side.PLAYER:
+                new_res = replace(res, player_card=new_card)
+            else:
+                new_res = replace(res, npc_card=new_card)
+
+            state = update_player(state, side, deck=new_deck)
+            state = replace(state, current_battle=new_res)
+            if new_card.id == old_card.id:
+                return _finish_interactive_effect(
+                    state, "-> 可憐の効果: 山札を切ったが、再び可憐がめくれた"
+                )
+            return _finish_interactive_effect(
+                state,
+                f"-> 可憐の効果: 可憐を山札に戻し、{new_card.name}を場に出した(戦具効果は不発)",
+            )
+
+        return _finish_interactive_effect(state, "-> 可憐の効果: 発動しない")
 
     return _finish_interactive_effect(state, "-> 選択効果: 未対応カード")
 
